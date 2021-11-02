@@ -13,37 +13,24 @@
     <script src="static/js/dependent/brython_stdlib.min.js"></script>
     <script src="static/js/dependent/blockly_compressed.js"></script>
     <script src="static/js/dependent/blocks_compressed.js"></script>
-    <script src="static/js/dependent/blocks_definition.js"></script>
     <script src="static/js/dependent/zh_tw.js"></script>
+    <script src="static/js/utils.js"></script>
 
 
 
 </head>
 
 <body onload="brython()">
-    <script type="text/python" src="static/pysrc/index.py"></script>
+    <script type="text/python" src="pysrc/index.py"></script>
 </body>
 
-<xml id="workspaceBlocks" style="display:none;">
-    <block type="msgbox" id="s=">
-        <value name="NAME">
-            <block type="text" id=";||,I=">
-                <field name="TEXT">垃圾!桶清除完畢!</field>
-            </block>
-        </value>
-    </block>
-</xml>
+<!-- 積木白板區 -->
+<div id="blocklyDiv" style="height: 600px; width: 100%;"></div>
 
-<!--block結構必須要是頭尾封閉的html形式才能正常被偵測-->
+<!-- 暫存積木白板區 -->
+<xml id="workspaceBlocks" style="display:none;"></xml>
+
+<!-- 暫存積木白板工具欄區 -->
 <xml xmlns="https://developers.google.com/blockly/xml" id="toolbox" style="display: none"></xml>
-
-<div id="div_ahkblockly_gui">
-    <div id="blocklyDiv" style="height: 600px; width: 100%;">
-
-    </div>
-</div>
-
-<!-- <script src="static/js/dependent/workspace.js"></script> -->
-
 
 </html>
