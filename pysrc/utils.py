@@ -4,6 +4,7 @@ from browser import (
 import browser
 import re
 
+log = window.console.log
 Blockly = window.Blockly
 
 

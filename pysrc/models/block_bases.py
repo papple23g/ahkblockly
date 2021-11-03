@@ -1,11 +1,17 @@
-import importlib
 import abc
+from typing import (
+    List,
+    Literal,
+    Union,
+)
 import uuid
-from typing import Union
 import re
 import javascript
 from browser import (
     doc,
+)
+from browser.html import (
+    DIV,
 )
 
 from pysrc.utils import *
@@ -51,6 +57,8 @@ class BlockBase(metaclass=abc.ABCMeta):
                 f"arg_dicts: [{', '.join(self.arg_dicts.keys())}]; "\
 
         # 將 arg 數值賦予至 self 的屬性
+
+        v: Union[str, BlockBase, List[BlockBase]] = ""
         for k, v in kwargs.items():
             setattr(self, k, v)
 
@@ -143,6 +151,9 @@ class BlockBase(metaclass=abc.ABCMeta):
             subclass.register()
             subclass.register_subclasses()
 
+        # 動態引入所有積木類
+        exec(f"from pysrc.models.blocks import *", globals())
+
     def get_xml_str(self) -> str:
         xml = doc.implementation.createDocument("", "", None)
         block_node = xml.createElement("block")
@@ -169,35 +180,112 @@ class BlockBase(metaclass=abc.ABCMeta):
         return xml_to_str(block_node)
 
     @staticmethod
+    def create_from_block_node(
+            block_node: browser.DOMNode,
+            arg_name: str,
+            find_all_next_block: bool = False) -> Union['BlockBase', List['BlockBase']]:
+        """ 從 block node 建立積木實例
+
+        Args:
+            block_node(browser.DOMNode)
+            arg_name(str): 參數名稱
+            find_all_next_block(bool): 是否找出所有下一個 block, 若為 True 則會回傳積木串列. Defaults to False.
+
+        Returns:
+            Union[BlockBase, List[BlockBase]
+        """
+
+        input_node = next(
+            (
+                sub_block_node for sub_block_node in block_node.children
+                if sub_block_node.attrs.get("name") == arg_name
+            ), None
+        )
+        if input_node is None:
+            return eval('EmptyBlock()') if not find_all_next_block else [eval('EmptyBlock()')]
+        input_block_node = input_node.select_one('block')
+        if input_block_node is None:
+            return eval('EmptyBlock()') if not find_all_next_block else [eval('EmptyBlock()')]
+        input_block_type: str = input_block_node.attrs['type']
+        input_block_class_name = f"{to_camel_case(input_block_type)}Block"
+        input_block_class: BlockBase = eval(input_block_class_name)
+        input_block = input_block_class.create_from_xml_str(
+            input_node.innerHTML
+        )
+
+        if not find_all_next_block:
+            return input_block
+
+        input_block_list = [input_block]
+        for statement_next_node in input_node.select('next'):
+            statement_block_node = statement_next_node.select_one('block')  # nopep8
+            if statement_block_node is None:
+                continue
+            statement_block_type: str = statement_block_node.attrs['type']
+            statement_block_class_name = f"{to_camel_case(statement_block_type)}Block"
+            statement_block_class: BlockBase = eval(
+                statement_block_class_name
+            )
+            statement_block = statement_block_class.create_from_xml_str(
+                statement_block_node.outerHTML
+            )
+            input_block_list.append(statement_block)
+        return input_block_list
+
+    @staticmethod
     def create_from_xml_str(xml_str: str) -> 'BlockBase':
-        """ 從 xml 字串建立積木實例 """
-        xml = xml_str_to_xml(xml_str)
-        block_node = xml.getElementsByTagName("block")[0]
-        block_type: str = block_node.getAttribute("type")
+        """ 從 xml 字串建立積木實例
+
+        Raises:
+            ValueError: 解析 xml 錯誤
+
+        Returns:
+            BlockBase: 積木實例
+        """
+
+        # .## 修改為解析出多個 block
+        xml_div = DIV(xml_str)
+        block_node_list = xml_div.select('xml>block') or [
+            child_note for child_note in xml_div.children
+            if child_note.tagName == 'BLOCK'
+        ]
+        block_node = next(iter(block_node_list), None)
+        if block_node is None:
+            raise ValueError(f"can not create blockly from xml_str: {xml_str}")
+
+        block_type: str = block_node.attrs['type']
         block_class_name = f"{to_camel_case(block_type)}Block"
-        exec(f"from pysrc.models.blocks import {block_class_name}", globals())
-        block_class: BlockBase = eval(
-            f"{to_camel_case(block_type)}Block")
+        block_class: BlockBase = eval(block_class_name)
         block_kwargs = {}
+
+        # 遍歷 block 的 args: 將子層積木實例化 或者獲取 field 值
         for arg_name, arg_dict in block_class.arg_dicts.items():
 
-            if arg_dict['type'].startswith('input_'):
-                _, node_tag_name = arg_dict['type'].split('_')
-                sub_block_node = block_node.getElementsByTagName("block")[0]  # nopep8
-                sub_block_type: str = sub_block_node.getAttribute("type")
-                sub_block_class_name = f"{to_camel_case(sub_block_type)}Block"
-                exec(
-                    f"from pysrc.models.blocks import {sub_block_class_name}",
-                    globals()
-                )
-                sub_block_class: BlockBase = eval(sub_block_class_name)
-                block_kwargs[arg_name] = sub_block_class.create_from_xml_str(
-                    xml_to_str(sub_block_node)
-                )
+            # 若 arg 類型為 input_value ，就賦值 [實例化子層積木] 至 block_kwargs
+            if arg_dict['type'] == 'input_value':
+                value_block: BlockBase = BlockBase.create_from_block_node(
+                    block_node, arg_name)
+                block_kwargs[arg_name] = value_block
+
+            # 若 arg 類型為 input_statement，就賦值 [實例化子層積木列表] 至 block_kwargs
+            elif arg_dict['type'] == 'input_statement':
+                statement_block_list: List[BlockBase] = BlockBase.create_from_block_node(
+                    block_node, arg_name, find_all_next_block=True)
+                block_kwargs[arg_name] = statement_block_list
+
+            # 若 arg 類型為 field 類，就獲取 field 值
             elif arg_dict['type'].startswith('field_'):
                 node_tag_name = "field"
-                sub_block_node = block_node.getElementsByTagName(node_tag_name)[0]  # nopep8
-                block_kwargs[arg_name] = sub_block_node.innerHTML
+                field_node = next(
+                    (
+                        sub_block_node for sub_block_node in block_node.children
+                        if sub_block_node.tagName == node_tag_name.upper() and sub_block_node.getAttribute('name') == arg_name
+                    ), None
+                )
+                if field_node is None:
+                    block_kwargs[arg_name] = eval('EmptyBlock()')
+                    continue
+                block_kwargs[arg_name] = field_node.innerHTML
 
         return block_class(**block_kwargs)
 

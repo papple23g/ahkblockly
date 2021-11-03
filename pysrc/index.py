@@ -14,20 +14,23 @@ from pysrc.models.blockly_board import BlocklyBoard
 from pysrc.models.blocks import *
 
 
-def blockly_board_to_xml_str_and_ahksrc(blocklyBoard):
-    xml = Blockly.Xml.workspaceToDom(blocklyBoard)
-    xml_str = xml_to_str(xml)
-    doc['xml_textarea'].value = window.prettify_xml(xml_str)
-    doc['ahk_textarea'].value = BlockBase.create_from_xml_str(xml_str).ahkscr()
+def compile_btn(blocklyBoard: BlocklyBoard):
+    """ 編譯按鈕 """
+    def blockly_board_to_xml_str_and_ahksrc(ev):
+        doc['xml_textarea'].value = window.prettify_xml(
+            blocklyBoard.get_xml_str())
+        doc['ahk_textarea'].value = blocklyBoard.get_ahksrc()
+
+    compile_btn = BUTTON("Compile")
+    compile_btn.bind(
+        "click", blockly_board_to_xml_str_and_ahksrc
+    )
+    return compile_btn
 
 
-def layout():
-    global blocklyBoard
-    doc <= DIV(id="blocklyDiv", style=dict(width="100%", height="600px"))
-    doc <= BUTTON("Compile", id="btn_compile").bind(
-        "click", lambda ev: blockly_board_to_xml_str_and_ahksrc(blocklyBoard))
-    doc <= BUTTON("Run", id="btn_run")
-    doc <= DIV(
+def code_view_div():
+    """ 瀏覽編譯後的 xml 與 ahk 程式碼 DIV 元素 """
+    return DIV(
         [
             DIV(
                 TEXTAREA(
@@ -64,51 +67,53 @@ def layout():
 
 
 def main():
-    global blocklyBoard
-    layout()
 
     # register all Blocks
     BlockBase.register_subclasses()
 
-    # 準備 blockly 工具欄
-    doc['toolbox'].innerHTML = BlocklyBoard.Toolbox(categories=[
-        BlocklyBoard.Toolbox.Category(
-            name="測試",
-            colour="#0000CD",
-            blocks=[
-                TextBlock(
-                    name="Hello World!",
-                ),
-                MathNumberBlock(
-                    NUM=123,
-                ),
-                MsgboxBlock(
-                    NAME=TextBlock(
-                        TEXT="Hello World!",
+    # 白板: 建立白板實例、DIV元素並注入內容
+    blocklyBoard = BlocklyBoard(
+        toolbox=BlocklyBoard.Toolbox(categories=[
+            BlocklyBoard.Toolbox.Category(
+                name="測試",
+                colour="#0000CD",
+                blocks=[
+                    TextBlock(
+                        name="Hello World!",
                     ),
+                    MathNumberBlock(
+                        NUM=123,
+                    ),
+                    MsgboxBlock(
+                        NAME=TextBlock(
+                            TEXT="Hello World!",
+                        ),
+                    ),
+                ]
+            ),
+        ]),
+        block=HotkeyExecuteBlock(
+            NAME=NormalKeyBlock(
+                normal_key="A",
+            ),
+            DO=MsgboxBlock(
+                NAME=TextBlock(
+                    TEXT="Hello World!",
                 ),
-            ]
+            ),
         ),
-    ]).get_xml_str()
+    )
+    doc <= blocklyBoard.get_div()
+    blocklyBoard.inject()
 
-    # 建立白板: 在積木白板 DIV 建立白板元素，並回傳白板實例
-    blocklyBoard = BlocklyBoard().inject('blocklyDiv')
-    # # 填充初始白板內容 (目前為空值)
-    # Blockly.Xml.domToWorkspace(doc["workspaceBlocks"], blocklyBoard)
+    # 置入編譯按鈕
+    doc <= compile_btn(blocklyBoard)
 
-    xml_str = '''<block type="msgbox" id="09209eb0773947778ddb51c736967d3f"><value name="NAME"><block type="text" id="b8729cd37e3248ff8e3d9594b3a2f988"><field name="TEXT">你好</field></block></value></block>'''
-    # xml_str = '''<block type="text" id="b8729cd37e3248ff8e3d9594b3a2f988"><field name="TEXT">你好</field></block>'''
+    # 置入執行按鈕
+    doc <= BUTTON("Run", id="btn_run")
 
-    example_block = MsgboxBlock.create_from_xml_str(xml_str)
-    # example_block = TextBlock.create_from_xml_str(xml_str)
-
-    xml_str = example_block.get_xml_str()
-    print(xml_str)
-    print(example_block.ahkscr())
-
-    doc["workspaceBlocks"].innerHTML = xml_str
-    Blockly.Xml.clearWorkspaceAndLoadFromXml(
-        doc["workspaceBlocks"], blocklyBoard)
+    # 置入編譯後的 xml 與 ahk 程式碼 DIV 區塊
+    doc <= code_view_div()
 
 
 if __name__ == "__main__":

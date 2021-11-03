@@ -1,6 +1,14 @@
 import string
+from typing import Literal
 
 from pysrc.models.block_bases import *
+
+
+class EmptyBlock(BlockBase):
+    """ 空積木 """
+
+    def ahkscr(self) -> Literal['']:
+        return ''
 
 
 class TextBlock(StringBlockBase, BuildInBlockBase):
@@ -38,7 +46,7 @@ class MsgboxBlock(ActionBlockBase):
     }
 
     def ahkscr(self) -> str:
-        return f"Msgbox % {self.NAME.ahkscr()}"
+        return f"Msgbox % {self.NAME.ahkscr() or '\"\"'}"
 
 
 class NormalKeyBlock(ObjectBlockBase):
@@ -78,3 +86,15 @@ class HotkeyExecuteBlock(BlockBase):
             'type': 'input_statement',
         }
     }
+
+    def ahkscr(self) -> str:
+        TAB4_INDENT: str = '    '
+        # breakpoint()
+        # return f"{self.NAME.ahkscr()}:: {self.DO[0].ahkscr()}"
+        do_ahksrc_list = [do_block.ahkscr() for do_block in self.DO]
+        if len(do_ahksrc_list) == 1:
+            do_ahksrc = do_ahksrc_list[0]
+        else:
+            do_ahksrc = f"\n{TAB4_INDENT}" + \
+                f"\n{TAB4_INDENT}".join(do_ahksrc_list + ["Return"])
+        return f"{self.NAME.ahkscr()}:: {do_ahksrc}"
