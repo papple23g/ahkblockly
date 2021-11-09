@@ -235,3 +235,44 @@ class ShortCutBlock(BlockBase):
             do_ahkscr = f"\n{TAB4_INDENT}" + \
                 f"\n{TAB4_INDENT}".join(do_ahkscr_list + ["Return"])
         return f"{self.KEY.ahkscr()}:: {do_ahkscr}"
+
+
+class OptionFileBlock(BlockBase):
+    """ 選項檔案積木 """
+    template = '{OBJ}'
+    colour = BlockBase.Colour.filepath
+    arg_dicts = {
+        'OBJ': {
+            'type': 'field_dropdown',
+            "options": [
+                ['記事本', '"Notepad.exe"'],
+                ['小畫家', '"mspaint.exe"'],
+                ["小算盤", 'windir . "\system32\calc.exe"'],
+                ["剪取工具", ' windir . "\system32\SnippingTool.exe"'],
+                ["命令提示字元", ' windir . "\system32\cmd.exe"'],
+                ["AHK腳本", 'A_ScriptFullPath'],
+                ["AHK主程式", 'A_AhkPath'],
+            ],
+        },
+    }
+    register_dict = {
+        "output": "filepath",
+    }
+
+    def ahkscr(self) -> str:
+        return self.OBJ
+
+
+class RunBlock(ActionBlockBase):
+    """ 執行/開啟 檔案/目錄/網頁 積木 """
+    template = '開啟{OBJ}'
+    colour = BlockBase.Colour.action
+    arg_dicts = {
+        'OBJ': {
+            'type': 'input_value',
+            'check': ["dirpath", "filepath", "link", "String"]
+        },
+    }
+
+    def ahkscr(self) -> str:
+        return f"Run % {self.OBJ.ahkscr()}"

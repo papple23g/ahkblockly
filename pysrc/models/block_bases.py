@@ -293,6 +293,7 @@ class BlockBase(metaclass=abc.ABCMeta):
         String = 160
         Number = hotkey = 230
         filepath = dirpath = link = 290
+        action = 260
 
 
 class ActionBlockBase(BlockBase):
