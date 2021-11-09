@@ -94,21 +94,35 @@ class BlocklyBoard:
 
     def inject(self):
         """ 注入白板、工具箱、積木至網頁中 """
+
+        def _clear_xml_and_ahk_code_area(ev):
+            """ 清除 XML 和 AHK 代碼區域 """
+            doc['ahkscr_textarea'].value = ''
+            doc['xml_textarea'].value = ''
+
+        # 檢箭是否 html 已有對應的白板 id 元素
         assert doc.select_one(f"#{self.blockly_id}") != None,\
             f"尚未將此白板(id={self.blockly_id})的 DIV 元素置入至網頁中"
+
+        # 建立 Blockly 白板 workspace
         self.workspace = Blockly.inject(
             self.blockly_id,
             self._get_option_dict(),
         )
+
+        # 建立 Blockly 白板裡的積木內容
         if self.block:
             self.load_xml(self.block.get_xml_str())
+
+        # 設定監聽事件: 積木更改時，清空 xml 與 ahk 代碼區塊
+        self.workspace.addChangeListener(_clear_xml_and_ahk_code_area)
 
     def get_xml_str(self) -> str:
         """ 取得 XML 字串 """
         xml = Blockly.Xml.workspaceToDom(self.workspace)
         return xml_to_str(xml)
 
-    def get_ahksrc(self) -> str:
+    def get_ahkscr(self) -> str:
         """ 取得 AHK 代碼 """
         xml_str = self.get_xml_str()
         return BlockBase.create_from_xml_str(xml_str).ahkscr()

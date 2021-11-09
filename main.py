@@ -4,6 +4,7 @@ from loguru import logger
 from fastapi import (
     FastAPI,
     Request,
+    BackgroundTasks,
 )
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -85,9 +86,10 @@ class RunAhkscrPost(BaseModel):
 
 
 @app.post("/api/run_ahkscr")
-async def run_ahkscr(ahkscrPost: RunAhkscrPost):
-    ahkscrPost.run()
-    return {'status': 'ok'}
+async def run_ahkscr(ahkscrPost: RunAhkscrPost, background_tasks: BackgroundTasks):
+    """ 執行 AHK 腳本字串 """
+    background_tasks.add_task(ahkscrPost.run)
+    return
 
 
 def main():

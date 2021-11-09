@@ -1,8 +1,10 @@
+import json
 import inspect
 
 from browser import (
     doc,
-    alert
+    alert,
+    aio,
 )
 from browser.html import (
     DIV,
@@ -19,16 +21,40 @@ from pysrc.models import blocks as Blocks
 
 def compile_btn(blocklyBoard: BlocklyBoard):
     """ 編譯按鈕 """
-    def blockly_board_to_xml_str_and_ahksrc(ev):
+    def blockly_board_to_xml_str_and_ahkscr(ev):
         doc['xml_textarea'].value = window.prettify_xml(
             blocklyBoard.get_xml_str())
-        doc['ahk_textarea'].value = blocklyBoard.get_ahksrc()
+        doc['ahkscr_textarea'].value = blocklyBoard.get_ahkscr()
 
-    compile_btn = BUTTON("Compile")
+    compile_btn = BUTTON("Compile", id="compile_btn")
     compile_btn.bind(
-        "click", blockly_board_to_xml_str_and_ahksrc
+        "click", blockly_board_to_xml_str_and_ahkscr
     )
     return compile_btn
+
+
+def run_ahk_btn():
+    """ 執行 AHK 按鈕 """
+    async def run_ahkscr():
+
+        # 獲取 AHK 程式碼 (若尚未產生就點一下編譯按鈕)
+        if not doc['ahkscr_textarea'].value:
+            doc['compile_btn'].click()
+        ahkscr = doc['ahkscr_textarea'].value
+
+        # POST 請求: 送出 AHK 程式碼並執行
+        await aio.post(
+            '/api/run_ahkscr',
+            data=json.dumps(dict(
+                ahkscr=ahkscr,
+            )),
+        )
+
+    run_ahk_btn = BUTTON("Run")
+    run_ahk_btn.bind(
+        "click", lambda ev: aio.run(run_ahkscr())
+    )
+    return run_ahk_btn
 
 
 def code_view_div():
@@ -52,7 +78,7 @@ def code_view_div():
             ),
             DIV(
                 TEXTAREA(
-                    id="ahk_textarea",
+                    id="ahkscr_textarea",
                     style=dict(
                         width="100%",
                         height="300px",
@@ -118,7 +144,7 @@ def main():
     doc <= compile_btn(blocklyBoard)
 
     # 置入執行按鈕
-    doc <= BUTTON("Run", id="btn_run")
+    doc <= run_ahk_btn()
 
     # 置入編譯後的 xml 與 ahk 程式碼 DIV 區塊
     doc <= code_view_div()

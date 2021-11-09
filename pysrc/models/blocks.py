@@ -227,11 +227,11 @@ class ShortCutBlock(BlockBase):
 
     def ahkscr(self) -> str:
         TAB4_INDENT: str = '    '
-        do_ahksrc_list = [do_block.ahkscr() for do_block in self.DO]
+        do_ahkscr_list = [do_block.ahkscr() for do_block in self.DO]
         # 根據執行積木數量，決定是否需要換行(縮排)，並於結尾加上Return
-        if len(do_ahksrc_list) == 1:
-            do_ahksrc = do_ahksrc_list[0]
+        if len(do_ahkscr_list) == 1:
+            do_ahkscr = do_ahkscr_list[0]
         else:
-            do_ahksrc = f"\n{TAB4_INDENT}" + \
-                f"\n{TAB4_INDENT}".join(do_ahksrc_list + ["Return"])
-        return f"{self.KEY.ahkscr()}:: {do_ahksrc}"
+            do_ahkscr = f"\n{TAB4_INDENT}" + \
+                f"\n{TAB4_INDENT}".join(do_ahkscr_list + ["Return"])
+        return f"{self.KEY.ahkscr()}:: {do_ahkscr}"
