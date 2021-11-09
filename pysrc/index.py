@@ -1,3 +1,5 @@
+import inspect
+
 from browser import (
     doc,
     alert
@@ -12,6 +14,7 @@ from pysrc.utils import *
 from pysrc.models.block_bases import BlockBase
 from pysrc.models.blockly_board import BlocklyBoard
 from pysrc.models.blocks import *
+from pysrc.models import blocks as Blocks
 
 
 def compile_btn(blocklyBoard: BlocklyBoard):
@@ -78,26 +81,31 @@ def main():
                 name="測試",
                 colour="#0000CD",
                 blocks=[
-                    TextBlock(
-                        name="Hello World!",
-                    ),
-                    MathNumberBlock(
-                        NUM=123,
-                    ),
-                    MsgboxBlock(
-                        NAME=TextBlock(
-                            TEXT="Hello World!",
-                        ),
-                    ),
-                ]
+                    block_class() for block_class_name, block_class in inspect.getmembers(Blocks, inspect.isclass)
+                    if block_class_name.endswith("Block")
+                    and block_class_name != "EmptyBlock"
+                ],
+                # blocks=[
+                #     TextBlock(
+                #         name="Hello World!",
+                #     ),
+                #     MathNumberBlock(
+                #         NUM=123,
+                #     ),
+                #     MsgboxBlock(
+                #         NAME=TextBlock(
+                #             TEXT="Hello World!",
+                #         ),
+                #     ),
+                # ]
             ),
         ]),
-        block=HotkeyExecuteBlock(
-            NAME=NormalKeyBlock(
-                normal_key="A",
+        block=ShortCutBlock(
+            KEY=NormalKeyBlock(
+                KEY="A",
             ),
             DO=MsgboxBlock(
-                NAME=TextBlock(
+                TEXT=TextBlock(
                     TEXT="Hello World!",
                 ),
             ),
