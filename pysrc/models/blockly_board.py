@@ -135,8 +135,17 @@ class BlocklyBoard:
 
     def get_ahkscr(self) -> str:
         """ 取得 AHK 代碼 """
+
+        # 自白板獲取 xml 字串
         xml_str = self.get_xml_str()
-        return BlockBase.create_from_xml_str(xml_str).ahkscr()
+        # 將 xml 字串解析成多個積木元素，再逐一取得積木 AHK 字串
+        block_ahkscr_list = [
+            block.ahkscr()
+            for block in BlockBase.create_blocks_from_xml_str(xml_str)
+            # 排除含有輸出類型設定的積木 (因為此為物件型積木，不能被單獨編譯)
+            if "output" not in block.register_dict
+        ]
+        return "\n".join(block_ahkscr_list)
 
     def load_xml_str(self, xml_str: str):
         """ 載入 XML 字串 """

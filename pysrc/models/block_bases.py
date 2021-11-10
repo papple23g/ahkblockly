@@ -2,6 +2,7 @@ import abc
 from typing import (
     List,
     Literal,
+    Optional,
     Union,
 )
 import uuid
@@ -127,32 +128,45 @@ class BlockBase(metaclass=abc.ABCMeta):
         return com_dict
 
     @classmethod
-    def register(cls):
+    def register(cls) -> Optional['BlockBase']:
+        """ 註冊積木至 window.Blockly.Blocks
+
+        Returns:
+            Optional['BlockBase']: 若積木可註冊則回傳該積木物件，否則回傳 None
+        """
         # 若積木類的名稱不是以 Block 結尾就不進行註冊
         if not cls.__name__.endswith("Block"):
-            return
+            return None
 
         # 若積木類為內建積木就不進行註冊
         if issubclass(cls, BuildInBlockBase):
-            return
+            return None
 
         # 註冊 block
         Blockly.Blocks[cls._get_type_attr()] = {
             "init": lambda: javascript.this().jsonInit(cls._get_register_dict()),
         }
-        # print(f'block class {cls.__name__} registered.')
+        return cls
 
     @classmethod
-    def register_subclasses(cls):
+    def register_subclasses(cls) -> List['BlockBase']:
+        """ 註冊所有子類積木至 window.Blockly.Blocks
+
+        Returns:
+            List['BlockBase']: 已註冊的積木類列表
         """
-        註冊所有子類
-        """
+        com_registered_subclass_list = []
         for subclass in cls.__subclasses__():
-            subclass.register()
-            subclass.register_subclasses()
+            registered_subclass = subclass.register()
+            registered_subclass_list = subclass.register_subclasses()
+
+            for _registered_subclass in [registered_subclass] + registered_subclass_list:
+                if _registered_subclass:
+                    com_registered_subclass_list.append(_registered_subclass)
 
         # 動態引入所有積木類
         exec(f"from pysrc.models.blocks import *", globals())
+        return com_registered_subclass_list
 
     def get_xml_str(self, formatting: bool = False) -> str:
         xml = doc.implementation.createDocument("", "", None)
@@ -209,9 +223,9 @@ class BlockBase(metaclass=abc.ABCMeta):
         input_block_type: str = input_block_node.attrs['type']
         input_block_class_name = f"{to_camel_case(input_block_type)}Block"
         input_block_class: BlockBase = eval(input_block_class_name)
-        input_block = input_block_class.create_from_xml_str(
+        input_block = input_block_class.create_blocks_from_xml_str(
             input_node.innerHTML
-        )
+        )[0]
 
         if not find_all_next_block:
             return input_block
@@ -226,14 +240,14 @@ class BlockBase(metaclass=abc.ABCMeta):
             statement_block_class: BlockBase = eval(
                 statement_block_class_name
             )
-            statement_block = statement_block_class.create_from_xml_str(
+            statement_block = statement_block_class.create_blocks_from_xml_str(
                 statement_block_node.outerHTML
-            )
+            )[0]
             input_block_list.append(statement_block)
         return input_block_list
 
     @staticmethod
-    def create_from_xml_str(xml_str: str) -> 'BlockBase':
+    def create_blocks_from_xml_str(xml_str: str) -> List['BlockBase']:
         """ 從 xml 字串建立積木實例
 
         Raises:
@@ -242,52 +256,70 @@ class BlockBase(metaclass=abc.ABCMeta):
         Returns:
             BlockBase: 積木實例
         """
+        com_block_list = []
 
-        # .## 修改為解析出多個 block
+        # 遍歷所有獨立的 block 群
         xml_div = DIV(xml_str)
-        block_node_list = xml_div.select('xml>block') or [
+        _block_node_list = xml_div.select('xml>block') or [
             child_note for child_note in xml_div.children
             if child_note.tagName == 'BLOCK'
         ]
-        block_node = next(iter(block_node_list), None)
-        if block_node is None:
-            raise ValueError(f"can not create blockly from xml_str: {xml_str}")
+        block_node_list = []
+        for block_node in _block_node_list:
+            block_node_list.append(block_node)
 
-        block_type: str = block_node.attrs['type']
-        block_class_name = f"{to_camel_case(block_type)}Block"
-        block_class: BlockBase = eval(block_class_name)
-        block_kwargs = {}
-
-        # 遍歷 block 的 args: 將子層積木實例化 或者獲取 field 值
-        for arg_name, arg_dict in block_class.arg_dicts.items():
-
-            # 若 arg 類型為 input_value ，就賦值 [實例化子層積木] 至 block_kwargs
-            if arg_dict['type'] == 'input_value':
-                value_block: BlockBase = BlockBase.create_from_block_node(
-                    block_node, arg_name)
-                block_kwargs[arg_name] = value_block
-
-            # 若 arg 類型為 input_statement，就賦值 [實例化子層積木列表] 至 block_kwargs
-            elif arg_dict['type'] == 'input_statement':
-                statement_block_list: List[BlockBase] = BlockBase.create_from_block_node(
-                    block_node, arg_name, find_all_next_block=True)
-                block_kwargs[arg_name] = statement_block_list
-
-            # 若 arg 類型為 field 類，就獲取 field 值
-            elif arg_dict['type'].startswith('field_'):
-                node_tag_name = "field"
-                field_node = next(
+            # 不斷取得下一個 block node (next>block)
+            while True:
+                next_node = next(
                     (
-                        sub_block_node for sub_block_node in block_node.children
-                        if sub_block_node.tagName == node_tag_name.upper() and sub_block_node.getAttribute('name') == arg_name
+                        child_note for child_note in block_node.children
+                        if child_note.tagName == 'NEXT'
                     ), None
                 )
-                if field_node is None:
-                    block_kwargs[arg_name] = eval('EmptyBlock()')
-                    continue
-                block_kwargs[arg_name] = field_node.innerHTML
+                if not next_node:
+                    break
+                block_node = next_node.select_one('block')
+                block_node_list.append(block_node)
 
-        return block_class(**block_kwargs)
+        for block_node in block_node_list:
+
+            # 分析 block 的 type，並準備建立積木實例的參數字典
+            block_type: str = block_node.attrs['type']
+            block_class_name = f"{to_camel_case(block_type)}Block"
+            block_class: BlockBase = eval(block_class_name)
+            block_kwargs = {}
+
+            # 遍歷 block 的 args: 將子層積木實例化 或者獲取 field 值
+            for arg_name, arg_dict in block_class.arg_dicts.items():
+
+                # 若 arg 類型為 input_value ，就賦值 [實例化子層積木] 至 block_kwargs
+                if arg_dict['type'] == 'input_value':
+                    value_block: BlockBase = BlockBase.create_from_block_node(
+                        block_node, arg_name)
+                    block_kwargs[arg_name] = value_block
+
+                # 若 arg 類型為 input_statement，就賦值 [實例化子層積木列表] 至 block_kwargs
+                elif arg_dict['type'] == 'input_statement':
+                    statement_block_list: List[BlockBase] = BlockBase.create_from_block_node(
+                        block_node, arg_name, find_all_next_block=True)
+                    block_kwargs[arg_name] = statement_block_list
+
+                # 若 arg 類型為 field 類，就獲取 field 值
+                elif arg_dict['type'].startswith('field_'):
+                    node_tag_name = "field"
+                    field_node = next(
+                        (
+                            sub_block_node for sub_block_node in block_node.children
+                            if sub_block_node.tagName == node_tag_name.upper() and sub_block_node.getAttribute('name') == arg_name
+                        ), None
+                    )
+                    if field_node is None:
+                        block_kwargs[arg_name] = eval('EmptyBlock()')
+                        continue
+                    block_kwargs[arg_name] = field_node.innerHTML
+
+            com_block_list.append(block_class(**block_kwargs))
+        return com_block_list
 
     class Colour:
         String = 160

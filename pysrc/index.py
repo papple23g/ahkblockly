@@ -98,12 +98,15 @@ def code_view_div():
 def main():
 
     # register all Blocks
-    BlockBase.register_subclasses()
+    global registered_block_class_list
+    registered_block_class_list = BlockBase.register_subclasses()
 
     # 白板: 建立白板實例、DIV元素並注入內容
     blocklyBoard = BlocklyBoard(
         toolbox=BlocklyBoard.Toolbox(categories=[
+            # 建立工具欄積木
             BlocklyBoard.Toolbox.Category(
+                # 建立一個[測試]的積木類別，包含所有積木 (但不包含空白積木)
                 name="測試",
                 colour="#0000CD",
                 blocks=[
@@ -111,19 +114,6 @@ def main():
                     if block_class_name.endswith("Block")
                     and block_class_name != "EmptyBlock"
                 ],
-                # blocks=[
-                #     TextBlock(
-                #         name="Hello World!",
-                #     ),
-                #     MathNumberBlock(
-                #         NUM=123,
-                #     ),
-                #     MsgboxBlock(
-                #         NAME=TextBlock(
-                #             TEXT="Hello World!",
-                #         ),
-                #     ),
-                # ]
             ),
         ]),
         block=ShortCutBlock(

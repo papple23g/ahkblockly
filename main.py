@@ -48,7 +48,7 @@ class Config(BaseModel):
         import tempfile
         with tempfile.TemporaryDirectory() as tmpdir:
             tmp_filepath = Path(tmpdir) / 'ahk_script.ahk'
-            tmp_filepath.write_text(ahk_script)
+            tmp_filepath.write_text(ahk_script, encoding='utf-8-sig')
             self.run_ahk_file(tmp_filepath)
 
 
