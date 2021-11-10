@@ -7,6 +7,7 @@ from browser import (
 from browser.html import (
     DIV,
 )
+from browser.local_storage import storage
 
 from pysrc.utils import *
 from pysrc.models.block_bases import BlockBase
@@ -100,6 +101,11 @@ class BlocklyBoard:
             doc['ahkscr_textarea'].value = ''
             doc['xml_textarea'].value = ''
 
+        def _save_xml_to_local_storage(ev):
+            """ 儲存 XML 字串至 local storage """
+            if ev.type not in ['ui', 'finished_loading']:
+                storage['xml'] = self.get_xml_str()
+
         # 檢箭是否 html 已有對應的白板 id 元素
         assert doc.select_one(f"#{self.blockly_id}") != None,\
             f"尚未將此白板(id={self.blockly_id})的 DIV 元素置入至網頁中"
@@ -110,12 +116,17 @@ class BlocklyBoard:
             self._get_option_dict(),
         )
 
-        # 建立 Blockly 白板裡的積木內容
-        if self.block:
-            self.load_xml(self.block.get_xml_str())
+        # 建立 Blockly 白板裡的積木內容 (自 local_storage 或參數 block 取得)
+        if storage['xml']:
+            self.load_xml_str(storage['xml'])
+        elif self.block:
+            self.load_xml_str(self.block.get_xml_str())
 
         # 設定監聽事件: 積木更改時，清空 xml 與 ahk 代碼區塊
         self.workspace.addChangeListener(_clear_xml_and_ahk_code_area)
+
+        # 設定監聽事件: 積木更改時，紀錄 xml 至 local_storage
+        self.workspace.addChangeListener(_save_xml_to_local_storage)
 
     def get_xml_str(self) -> str:
         """ 取得 XML 字串 """
@@ -127,12 +138,16 @@ class BlocklyBoard:
         xml_str = self.get_xml_str()
         return BlockBase.create_from_xml_str(xml_str).ahkscr()
 
-    def load_xml(self, xml_str: str):
+    def load_xml_str(self, xml_str: str):
         """ 載入 XML 字串 """
-        div = DIV()
-        div.innerHTML = xml_str
+        _xml_div = DIV(xml_str)
+        block_node_list = _xml_div.select('xml>block') or [
+            child_note for child_note in _xml_div.children
+            if child_note.tagName == 'BLOCK'
+        ]
+        xml_div = DIV(block_node_list)
         Blockly.Xml.clearWorkspaceAndLoadFromXml(
-            div,
+            xml_div,
             self.workspace
         )
 

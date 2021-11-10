@@ -154,7 +154,7 @@ class BlockBase(metaclass=abc.ABCMeta):
         # 動態引入所有積木類
         exec(f"from pysrc.models.blocks import *", globals())
 
-    def get_xml_str(self) -> str:
+    def get_xml_str(self, formatting: bool = False) -> str:
         xml = doc.implementation.createDocument("", "", None)
         block_node = xml.createElement("block")
         block_node.setAttribute("type", self.__class__._get_type_attr())
@@ -177,7 +177,7 @@ class BlockBase(metaclass=abc.ABCMeta):
             sub_block_node.innerHTML = inner_html
             sub_block_node.setAttribute("name", arg_name)
             block_node.appendChild(sub_block_node)
-        return xml_to_str(block_node)
+        return xml_to_str(block_node, formatting)
 
     @staticmethod
     def create_from_block_node(
