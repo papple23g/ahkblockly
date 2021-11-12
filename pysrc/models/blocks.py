@@ -52,7 +52,7 @@ class MsgboxBlock(ActionBlockBase):
         return f"Msgbox % {self.TEXT.ahkscr() or '\"\"'}"
 
 
-class NormalKeyBlock(ObjectBlockBase):
+class NormalKeyBlock(NormalKeyBlockBase):
     """ 普通按鍵積木 """
     template = '{KEY}'
     colour = BlockBase.Colour.hotkey
@@ -158,9 +158,6 @@ class NormalKeyBlock(ObjectBlockBase):
             ],
         },
     }
-    register_dict = {
-        "output": "normal_key",
-    }
 
     def ahkscr(self, to_be_send: bool = False) -> str:
         """ 普通按鍵積木的 ahk script 型態
@@ -176,7 +173,7 @@ class NormalKeyBlock(ObjectBlockBase):
         return f"{{{self.KEY}}}"
 
 
-class HotKeyBlock(ObjectBlockBase):
+class HotKeyBlock(HotKeyBlockBase):
     """ 熱鍵積木
     指 Ctrl、Shift、Alt、Win 這些可長押的輔助型的按鍵
     """
@@ -213,9 +210,6 @@ class HotKeyBlock(ObjectBlockBase):
             'check': ["hot_key", "normal_key", "special_key"]
         },
     }
-    register_dict = {
-        "output": "hot_key",
-    }
 
     def ahkscr(self, to_be_send: bool = False) -> str:
         return f"{html.unescape(self.KEY_A)}{self.KEY_B.ahkscr(to_be_send=to_be_send)}"
@@ -247,7 +241,7 @@ class ShortCutBlock(BlockBase):
         return ";"*(do_ahkscr == "") + f"{self.KEY.ahkscr()}:: {do_ahkscr}"
 
 
-class OptionFileBlock(BlockBase):
+class OptionFileBlock(FilepathBlockBase):
     """ 選項檔案積木 """
     template = '{OBJ}'
     colour = BlockBase.Colour.filepath
@@ -265,15 +259,12 @@ class OptionFileBlock(BlockBase):
             ],
         },
     }
-    register_dict = {
-        "output": "filepath",
-    }
 
     def ahkscr(self) -> str:
         return self.OBJ
 
 
-class OptionDirBlock(BlockBase):
+class OptionDirBlock(DirpathBlockBase):
     """ 選項目錄積木 """
     template = '{OBJ}'
     colour = BlockBase.Colour.dirpath
@@ -290,15 +281,12 @@ class OptionDirBlock(BlockBase):
             ],
         },
     }
-    register_dict = {
-        "output": "dirpath",
-    }
 
     def ahkscr(self) -> str:
         return self.OBJ
 
 
-class OptionLinkBlock(BlockBase):
+class OptionLinkBlock(LinkBlockBase):
     """ 選項目錄積木 """
     template = '{OBJ}'
     colour = BlockBase.Colour.link
@@ -319,15 +307,12 @@ class OptionLinkBlock(BlockBase):
             ],
         },
     }
-    register_dict = {
-        "output": "link",
-    }
 
     def ahkscr(self) -> str:
         return self.OBJ
 
 
-class FilepathBlock(BlockBase):
+class FilepathBlock(FilepathBlockBase):
     """ 檔案積木 """
     template = '檔案路徑{PATH}'
     colour = BlockBase.Colour.filepath
@@ -336,15 +321,12 @@ class FilepathBlock(BlockBase):
             'type': 'field_input',
         },
     }
-    register_dict = {
-        "output": "filepath",
-    }
 
     def ahkscr(self) -> str:
         return f'"{self.PATH.strip()}"' if self.PATH.strip() else ''
 
 
-class DirpathBlock(BlockBase):
+class DirpathBlock(DirpathBlockBase):
     """ 目錄積木 """
     template = '目錄路徑{PATH}'
     colour = BlockBase.Colour.dirpath
@@ -353,15 +335,12 @@ class DirpathBlock(BlockBase):
             'type': 'field_input',
         },
     }
-    register_dict = {
-        "output": "dirpath",
-    }
 
     def ahkscr(self) -> str:
         return f'"{self.PATH.strip()}"' if self.PATH.strip() else ''
 
 
-class LinkBlock(BlockBase):
+class LinkBlock(LinkBlockBase):
     """ 網頁連結積木 """
     template = '網頁{URL}'
     colour = BlockBase.Colour.link
@@ -370,16 +349,13 @@ class LinkBlock(BlockBase):
             'type': 'field_input',
         },
     }
-    register_dict = {
-        "output": "link",
-    }
 
     def ahkscr(self) -> str:
         return f'"{self.URL.strip()}"' if self.URL.strip() else ''
 
 
-class PathCombinedBlock(BlockBase):
-    """ 目錄積木 """
+class PathCombinedBlock(DirpathBlockBase, InputsInlineBlockBase):
+    """ 路徑組合積木 """
     template = '路徑{PATH_A}底下的{PATH_B}'
     colour = BlockBase.Colour.dirpath
     arg_dicts = {
@@ -391,10 +367,6 @@ class PathCombinedBlock(BlockBase):
             'type': 'input_value',
             'check': ['dirpath', 'filepath'],
         },
-    }
-    register_dict = {
-        "output": "dirpath",
-        "inputsInline": True,
     }
 
     def ahkscr(self) -> str:
@@ -421,19 +393,16 @@ class RunBlock(ActionBlockBase):
         return ";"*(self.OBJ.ahkscr().strip() == "") + f"Run % {self.OBJ.ahkscr()}"
 
 
-class ClipboardBlock(BlockBase):
+class ClipboardBlock(ObjectBlockBase):
     """ 剪貼簿積木 """
     template = '剪貼簿內容'
     colour = BlockBase.Colour.String
-    register_dict = {
-        "output": None,
-    }
 
     def ahkscr(self) -> str:
         return f'Clipboard'
 
 
-class OptionTimeBlock(BlockBase):
+class OptionTimeBlock(NumberBlockBase):
     """ 現年/月/日/星期/時/分/秒 時間積木 """
     template = '{TIME}'
     colour = BlockBase.Colour.Number
@@ -450,9 +419,6 @@ class OptionTimeBlock(BlockBase):
                 ["現秒(00-59)", "A_Sec"],
             ],
         },
-    }
-    register_dict = {
-        "output": "Number",
     }
 
     def ahkscr(self) -> str:
@@ -547,7 +513,7 @@ class ReloadBlock(ActionBlockBase):
         return "Reload"
 
 
-class RunFileByProgramBlock(ActionBlockBase):
+class RunFileByProgramBlock(ActionBlockBase, InputsInlineBlockBase):
     """ 使用特定程式執行檔案 積木 """
     template = '用{PROGRAM}程式來開啟{FILE}'
     colour = BlockBase.Colour.action
@@ -560,18 +526,6 @@ class RunFileByProgramBlock(ActionBlockBase):
             'type': 'input_value',
         },
     }
-    # register_dict = {
-    #     "inputsInline": True,
-    # }
-
-    # . ##### register_dict 全部改用這個形式 ↓↓↓ → 或者改用繼承的方式
-
-    @classmethod
-    def _get_register_dict(cls):
-        return {
-            **super()._get_register_dict(),
-            ** {"inputsInline": True},
-        }
 
     def ahkscr(self) -> str:
         program_ahkscr = self.PROGRAM.ahkscr().strip()

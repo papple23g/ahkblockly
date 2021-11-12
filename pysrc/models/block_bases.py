@@ -330,28 +330,120 @@ class BlockBase(metaclass=abc.ABCMeta):
 
 class ActionBlockBase(BlockBase):
     """ 動作型積木: 接受任何上下文積木 """
-    register_dict = {
-        "previousStatement": None,
-        "nextStatement": None,
-    }
+    @classmethod
+    def _get_register_dict(cls):
+        return {
+            **super()._get_register_dict(),
+            **{
+                "previousStatement": None,
+                "nextStatement": None,
+            },
+        }
+
+
+class InputsInlineBlockBase(BlockBase):
+    """ 單行型積木 """
+    @classmethod
+    def _get_register_dict(cls):
+        return {
+            **super()._get_register_dict(),
+            **{
+                "inputsInline": True,
+            },
+        }
 
 
 class ObjectBlockBase(BlockBase):
     """ 物件型積木: 有 output """
-    register_dict = {
-        "output": None,
-    }
+    @classmethod
+    def _get_register_dict(cls):
+        return {
+            **super()._get_register_dict(),
+            **{
+                "output": None,
+            },
+        }
 
 
 class StringBlockBase(ObjectBlockBase):
     """ 字串型積木 """
-    register_dict = {
-        "output": "String",
-    }
+    @classmethod
+    def _get_register_dict(cls):
+        return {
+            **super()._get_register_dict(),
+            **{
+                "output": "String",
+            },
+        }
 
 
 class NumberBlockBase(ObjectBlockBase):
     """ 數字型積木 """
-    register_dict = {
-        "output": "Number",
-    }
+    @classmethod
+    def _get_register_dict(cls):
+        return {
+            **super()._get_register_dict(),
+            **{
+                "output": "Number",
+            },
+        }
+
+
+class NormalKeyBlockBase(ObjectBlockBase):
+    """ 按鍵型積木 """
+    @classmethod
+    def _get_register_dict(cls):
+        return {
+            **super()._get_register_dict(),
+            **{
+                "output": "normal_key",
+            },
+        }
+
+
+class HotKeyBlockBase(ObjectBlockBase):
+    """ 熱鍵型積木 """
+    @classmethod
+    def _get_register_dict(cls):
+        return {
+            **super()._get_register_dict(),
+            **{
+                "output": "hot_key",
+            },
+        }
+
+
+class FilepathBlockBase(ObjectBlockBase):
+    """ 檔案型積木 """
+    @classmethod
+    def _get_register_dict(cls):
+        return {
+            **super()._get_register_dict(),
+            **{
+                "output": "filepath",
+            },
+        }
+
+
+class DirpathBlockBase(ObjectBlockBase):
+    """ 檔案型積木 """
+    @classmethod
+    def _get_register_dict(cls):
+        return {
+            **super()._get_register_dict(),
+            **{
+                "output": "dirpath",
+            },
+        }
+
+
+class LinkBlockBase(ObjectBlockBase):
+    """ 檔案型積木 """
+    @classmethod
+    def _get_register_dict(cls):
+        return {
+            **super()._get_register_dict(),
+            **{
+                "output": "link",
+            },
+        }
