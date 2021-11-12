@@ -101,7 +101,7 @@ def main():
     global registered_block_class_list
     registered_block_class_list = BlockBase.register_subclasses()
 
-    # 白板: 建立白板實例、DIV元素並注入內容
+    # 建立白板實例與白板DIV元素，並注入內容
     blocklyBoard = BlocklyBoard(
         toolbox=BlocklyBoard.Toolbox(categories=[
             # 建立工具欄積木
