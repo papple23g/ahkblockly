@@ -117,7 +117,7 @@ class BlocklyBoard:
         )
 
         # 建立 Blockly 白板裡的積木內容 (自 local_storage 或參數 block 取得)
-        if storage['xml']:
+        if storage.get('xml'):
             self.load_xml_str(storage['xml'])
         elif self.block:
             self.load_xml_str(self.block.get_xml_str())
