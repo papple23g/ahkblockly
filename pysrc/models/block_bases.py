@@ -26,7 +26,7 @@ class BuildInBlockBase:
 
 class BlockBase(metaclass=abc.ABCMeta):
     # 顯示訊息和變數的位置, 如: '調出訊息 {NAME} 的 {VALUE}'
-    template: str = None
+    template: Union[str, List[str]] = None
     # 參數字典集: 註冊 block 時的 arg0 列表裡的對應 arg 設定字典
     arg_dicts: dict = dict()
     # 是否使用內嵌呈現? 否則為使用外嵌
@@ -48,7 +48,9 @@ class BlockBase(metaclass=abc.ABCMeta):
         """
         # 檢查 template 中是否有重複的參數
         if self.template:
-            template_arg_name_list = re.findall(R"\{(.+?)\}", self.template)
+            template = self.template if isinstance(
+                self.template, str) else ''.join(self.template)
+            template_arg_name_list = re.findall(R"\{(.+?)\}", template)
             assert len(template_arg_name_list) == len(set(template_arg_name_list)),\
                 f"重複的參數名稱: [{', '.join(template_arg_name_list)}]"
             # 檢查是否有缺少的 arg
@@ -73,7 +75,8 @@ class BlockBase(metaclass=abc.ABCMeta):
         Returns:
             str
         """
-        com_msg = cls.template
+        com_msg = cls.template if isinstance(
+            cls.template, str) else '%n'.join(cls.template)
         for arg_i, arg_name in enumerate(cls.arg_dicts.keys(), start=1):
             com_msg = com_msg.replace(
                 f"{{{arg_name}}}", f"%{arg_i}")
@@ -112,7 +115,7 @@ class BlockBase(metaclass=abc.ABCMeta):
         """
         com_dict = {
             'type': cls._get_type_attr(),
-            "message0": cls._get_register_messages(),  # '跳出訊息 %1',
+            "message0": cls._get_register_messages(),  # ex. '跳出訊息 %1',
             'args0': [
                 {
                     "name": arg_name,
@@ -124,7 +127,16 @@ class BlockBase(metaclass=abc.ABCMeta):
             "colour": cls.colour,
             **cls.register_dict,
         }
-        # print(com_dict)
+
+        # 進行換行處理
+        for breakline_arg_i in range(
+                len(cls.arg_dicts)+1,
+                len(cls.arg_dicts)+1 + str(com_dict['message0']).count('%n')):
+            com_dict['message0'] = com_dict['message0'].replace(
+                '%n', f"%{breakline_arg_i}", 1)
+            com_dict['args0'].append({'type': 'input_dummy'})
+
+        print('com_dict', com_dict)
         return com_dict
 
     @classmethod
@@ -326,6 +338,7 @@ class BlockBase(metaclass=abc.ABCMeta):
         Number = hotkey = 230
         filepath = dirpath = link = 290
         action = 260
+        hot_string = '#CD5C5C'
 
 
 class ActionBlockBase(BlockBase):
@@ -334,10 +347,8 @@ class ActionBlockBase(BlockBase):
     def _get_register_dict(cls):
         return {
             **super()._get_register_dict(),
-            **{
-                "previousStatement": None,
-                "nextStatement": None,
-            },
+            "previousStatement": None,
+            "nextStatement": None,
         }
 
 
@@ -347,9 +358,17 @@ class InputsInlineBlockBase(BlockBase):
     def _get_register_dict(cls):
         return {
             **super()._get_register_dict(),
-            **{
-                "inputsInline": True,
-            },
+            "inputsInline": True,
+        }
+
+
+class InputsExternalBlockBase(BlockBase):
+    """ 多行型積木 """
+    @classmethod
+    def _get_register_dict(cls):
+        return {
+            **super()._get_register_dict(),
+            "inputsInline": False,
         }
 
 
@@ -359,9 +378,7 @@ class ObjectBlockBase(BlockBase):
     def _get_register_dict(cls):
         return {
             **super()._get_register_dict(),
-            **{
-                "output": None,
-            },
+            "output": None,
         }
 
 
@@ -371,9 +388,7 @@ class StringBlockBase(ObjectBlockBase):
     def _get_register_dict(cls):
         return {
             **super()._get_register_dict(),
-            **{
-                "output": "String",
-            },
+            "output": "String",
         }
 
 
@@ -383,9 +398,7 @@ class NumberBlockBase(ObjectBlockBase):
     def _get_register_dict(cls):
         return {
             **super()._get_register_dict(),
-            **{
-                "output": "Number",
-            },
+            "output": "Number",
         }
 
 
@@ -395,9 +408,7 @@ class NormalKeyBlockBase(ObjectBlockBase):
     def _get_register_dict(cls):
         return {
             **super()._get_register_dict(),
-            **{
-                "output": "normal_key",
-            },
+            "output": "normal_key",
         }
 
 
@@ -407,9 +418,7 @@ class HotKeyBlockBase(ObjectBlockBase):
     def _get_register_dict(cls):
         return {
             **super()._get_register_dict(),
-            **{
-                "output": "hot_key",
-            },
+            "output": "hot_key",
         }
 
 
@@ -419,9 +428,7 @@ class FilepathBlockBase(ObjectBlockBase):
     def _get_register_dict(cls):
         return {
             **super()._get_register_dict(),
-            **{
-                "output": "filepath",
-            },
+            "output": "filepath",
         }
 
 
@@ -431,9 +438,7 @@ class DirpathBlockBase(ObjectBlockBase):
     def _get_register_dict(cls):
         return {
             **super()._get_register_dict(),
-            **{
-                "output": "dirpath",
-            },
+            "output": "dirpath",
         }
 
 
@@ -443,7 +448,5 @@ class LinkBlockBase(ObjectBlockBase):
     def _get_register_dict(cls):
         return {
             **super()._get_register_dict(),
-            **{
-                "output": "link",
-            },
+            "output": "link",
         }

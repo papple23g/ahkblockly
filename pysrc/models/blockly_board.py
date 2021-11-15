@@ -106,7 +106,7 @@ class BlocklyBoard:
             if ev.type not in ['ui', 'finished_loading']:
                 storage['xml'] = self.get_xml_str()
 
-        # 檢箭是否 html 已有對應的白板 id 元素
+        # 檢驗是否 html 已有對應的白板 id 元素
         assert doc.select_one(f"#{self.blockly_id}") != None,\
             f"尚未將此白板(id={self.blockly_id})的 DIV 元素置入至網頁中"
 
@@ -135,6 +135,7 @@ class BlocklyBoard:
 
     def get_ahkscr(self) -> str:
         """ 取得 AHK 代碼 """
+        from pysrc.models.block_bases import ObjectBlockBase
 
         # 自白板獲取 xml 字串
         xml_str = self.get_xml_str()
@@ -142,8 +143,8 @@ class BlocklyBoard:
         block_ahkscr_list = [
             block.ahkscr()
             for block in BlockBase.create_blocks_from_xml_str(xml_str)
-            # 排除含有輸出類型設定的積木 (因為此為物件型積木，不能被單獨編譯)
-            if "output" not in block.register_dict
+            # 排除物件型積木 (因為物件型積木不能被單獨編譯)
+            if not issubclass(block.__class__, ObjectBlockBase)
         ]
         return "\n".join(block_ahkscr_list)
 

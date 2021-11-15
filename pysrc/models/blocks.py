@@ -21,8 +21,10 @@ class TextBlock(StringBlockBase, BuildInBlockBase):
         },
     }
 
-    def ahkscr(self) -> str:
-        return f'"{self.TEXT}"'
+    def ahkscr(self, with_quotes: bool = True) -> str:
+        if with_quotes:
+            return f'"{self.TEXT}"'
+        return self.TEXT
 
 
 class MathNumberBlock(NumberBlockBase, BuildInBlockBase):
@@ -231,13 +233,17 @@ class ShortCutBlock(BlockBase):
 
     def ahkscr(self) -> str:
         TAB4_INDENT: str = '    '
-        do_ahkscr_list = [do_block.ahkscr() for do_block in self.DO]
-        # 根據執行積木數量，決定是否需要換行(縮排)，並於結尾加上Return
-        if len(do_ahkscr_list) == 1:
-            do_ahkscr = do_ahkscr_list[0]
+        do_block_ahksrc_line_str = [
+            do_block_ahksrc_line_str
+            for do_block in self.DO
+            for do_block_ahksrc_line_str in do_block.ahkscr().splitlines()
+        ]
+        # 根據執行積木的ahk指令行數，決定是否需要換行(縮排)，並於結尾加上Return
+        if len(do_block_ahksrc_line_str) == 1:
+            do_ahkscr = do_block_ahksrc_line_str[0]
         else:
             do_ahkscr = f"\n{TAB4_INDENT}" + \
-                f"\n{TAB4_INDENT}".join(do_ahkscr_list + ["Return"])
+                f"\n{TAB4_INDENT}".join(do_block_ahksrc_line_str + ["Return"])
         return ";"*(do_ahkscr == "") + f"{self.KEY.ahkscr()}:: {do_ahkscr}"
 
 
@@ -393,7 +399,7 @@ class RunBlock(ActionBlockBase):
         return ";"*(self.OBJ.ahkscr().strip() == "") + f"Run % {self.OBJ.ahkscr()}"
 
 
-class ClipboardBlock(ObjectBlockBase):
+class ClipboardBlock(StringBlockBase):
     """ 剪貼簿積木 """
     template = '剪貼簿內容'
     colour = BlockBase.Colour.String
@@ -533,3 +539,90 @@ class RunFileByProgramBlock(ActionBlockBase, InputsInlineBlockBase):
         return ";"*(
             program_ahkscr == "" or file_ahkscr == ""
         ) + f'Run % {program_ahkscr} . " " . {file_ahkscr}'
+
+
+class ProcessCloseBlock(ActionBlockBase):
+    """ 執行終止程式積木 """
+    template = '終止程式{PROCESS}'
+    colour = BlockBase.Colour.action
+    arg_dicts = {
+        'PROCESS': {
+            'type': 'input_value',
+            'check': 'String',
+        },
+    }
+
+    def ahkscr(self) -> str:
+        process_ahkscr = self.PROCESS.ahkscr().strip()
+        return ";"*(process_ahkscr == "") + f'Process, Close, % {process_ahkscr}'
+
+
+class WinActivateBlock(ActionBlockBase):
+    """ 置頂視窗積木 """
+    template = '置頂視窗, 標題含:{WIN_TITLE}'
+    colour = BlockBase.Colour.action
+    arg_dicts = {
+        'WIN_TITLE': {
+            'type': 'input_value',
+            'check': 'String',
+        },
+    }
+
+    def ahkscr(self) -> str:
+        win_title_ahkscr = self.WIN_TITLE.ahkscr().strip()
+        return "\n".join([
+            "SetTitleMatchMode, 2",
+            ";"*(win_title_ahkscr == "") + f'WinActivate % {win_title_ahkscr}',
+        ])
+
+
+class SleepBlock(ActionBlockBase):
+    """ 等待毫秒時間積木 """
+    template = '等待{TIME_MS}毫秒'
+    colour = "#80ADC4"
+    arg_dicts = {
+        'TIME_MS': {
+            'type': 'input_value',
+            'check': 'Number',
+        },
+    }
+
+    def ahkscr(self) -> str:
+        time_ms_ahkscr = self.TIME_MS.ahkscr()
+        return ";"*(time_ms_ahkscr == "") + f'Sleep % {time_ms_ahkscr}'
+
+
+class SetClipboardBlock(ActionBlockBase):
+    """ 設定剪貼簿內容積木 """
+    template = '設定剪貼簿內容為{TEXT}'
+    colour = BlockBase.Colour.String
+    arg_dicts = {
+        'TEXT': {
+            'type': 'input_value',
+        },
+    }
+
+    def ahkscr(self) -> str:
+        text_ahksrc = self.TEXT.ahkscr()
+        return ";"*(text_ahksrc == "") + f'Clipboard := {text_ahksrc}'
+
+
+class HotStringBlock(InputsInlineBlockBase, BlockBase):
+    """ 熱字串積木 """
+    template = '輸入{ABBR}Enter展開為{TEXT}'
+    colour = BlockBase.Colour.hot_string
+    arg_dicts = {
+        'ABBR': {
+            'type': 'input_value',
+            'check': 'String',
+        },
+        'TEXT': {
+            'type': 'input_value',
+            'check': 'String',
+        },
+    }
+
+    def ahkscr(self) -> str:
+        abbr_ahksrc = self.ABBR.ahkscr(with_quotes=False)
+        text_ahksrc = self.TEXT.ahkscr(with_quotes=False)
+        return ";"*(not all([abbr_ahksrc, text_ahksrc])) + f'::{abbr_ahksrc}::{text_ahksrc}'
