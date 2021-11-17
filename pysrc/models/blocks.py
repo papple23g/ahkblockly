@@ -4,10 +4,12 @@ import string
 from typing import Literal
 
 from pysrc.models.block_bases import *
+from pysrc.utils import TAB4_INDENT
 
 
 class EmptyBlock(BlockBase):
     """ 空積木 """
+    is_empty = True
 
     def ahkscr(self, *args, **kwargs) -> Literal['']:
         return ''
@@ -209,7 +211,7 @@ class HotKeyBlock(HotKeyBlockBase):
         },
         'KEY_B': {
             'type': 'input_value',
-            'check': ["hot_key", "normal_key", "special_key"]
+            'check': ["hot_key", "normal_key"]
         },
     }
 
@@ -224,7 +226,7 @@ class ShortCutBlock(BlockBase):
     arg_dicts = {
         'KEY': {
             'type': 'input_value',
-            'check': ["normal_key", "hot_key", "special_key"],
+            'check': ["normal_key", "hot_key"],
         },
         'DO': {
             'type': 'input_statement',
@@ -232,7 +234,6 @@ class ShortCutBlock(BlockBase):
     }
 
     def ahkscr(self) -> str:
-        TAB4_INDENT: str = '    '
         do_block_ahksrc_line_str = [
             do_block_ahksrc_line_str
             for do_block in self.DO
@@ -245,6 +246,111 @@ class ShortCutBlock(BlockBase):
             do_ahkscr = f"\n{TAB4_INDENT}" + \
                 f"\n{TAB4_INDENT}".join(do_block_ahksrc_line_str + ["Return"])
         return ";"*(do_ahkscr == "") + f"{self.KEY.ahkscr()}:: {do_ahkscr}"
+
+
+class DisableShortCutBlock(BlockBase):
+    """ 禁用快捷鍵積木 """
+    template = '禁用快捷鍵{KEY}'
+    colour = BlockBase.Colour.black
+    arg_dicts = {
+        'KEY': {
+            'type': 'input_value',
+            'check': ['hot_key', 'normal_key'],
+        },
+    }
+
+    def ahkscr(self) -> str:
+        key_ahkscr = self.KEY.ahkscr()
+        return ";"*(key_ahkscr == "") + f"{key_ahkscr}:: Return"
+
+
+class ShortCutWithSettingBlock(BlockBase):
+    """ 含設定快捷鍵積木 """
+    template = '當按下{KEY}執行{DO}設定{SETTING}'
+    colour = BlockBase.Colour.hotkey
+    arg_dicts = {
+        'KEY': {
+            'type': 'input_value',
+            'check': ["normal_key", "hot_key"],
+        },
+        'DO': {
+            'type': 'input_statement',
+        },
+        'SETTING': {
+            'type': 'input_statement',
+            'check': "short_cut_setting",
+        },
+    }
+
+    def ahkscr(self) -> str:
+        # 獲取設定字符串
+        setting_block = next(iter(self.SETTING))
+        # 獲取按鍵積木: 套用設定字符串
+        key_ahksrc = (
+            setting_block.ahkscr().format(KEY=self.KEY.ahkscr())
+            if not setting_block.is_empty else self.KEY.ahkscr()
+        )
+
+        # 獲取執行積木 ahk 指令行
+        do_block_ahksrc_line_str = [
+            do_block_ahksrc_line_str
+            for do_block in self.DO
+            for do_block_ahksrc_line_str in do_block.ahkscr().splitlines()
+        ]
+        # 根據執行積木的ahk指令行數，決定是否需要換行(縮排)，並於結尾加上Return
+        if len(do_block_ahksrc_line_str) == 1:
+            do_ahkscr = do_block_ahksrc_line_str[0]
+        else:
+            do_ahkscr = f"\n{TAB4_INDENT}" + \
+                f"\n{TAB4_INDENT}".join(do_block_ahksrc_line_str + ["Return"])
+
+        return ";"*(do_ahkscr == "") + f"{key_ahksrc}:: {do_ahkscr}"
+
+
+class ShortCutSettingBlock(SettingBlockBase):
+    """ 快捷鍵設定積木 """
+    template = [
+        '{KEEP_ORIGIN}保留預設按鍵功能',
+        '{PREVENT_FIRE_ITSELF}避免自我觸發',
+        '{WILDCARD}可搭配其他輔助鍵觸發',
+        '{EXECUTE_AFTER_RELEASE}釋放後執行',
+    ]
+    colour = BlockBase.Colour.hotkey
+    arg_dicts = {
+        'KEEP_ORIGIN': {
+            'type': 'field_checkbox',
+            'checked': False,
+        },
+        'PREVENT_FIRE_ITSELF': {
+            'type': 'field_checkbox',
+            'checked': False,
+        },
+        'WILDCARD': {
+            'type': 'field_checkbox',
+            'checked': False,
+        },
+        'EXECUTE_AFTER_RELEASE': {
+            'type': 'field_checkbox',
+            'checked': False,
+        },
+    }
+
+    @classmethod
+    def _get_register_dict(cls):
+        """ 接受上文積木: 熱字串積木 """
+        return {
+            **super()._get_register_dict(),
+            "previousStatement": "short_cut_setting",
+        }
+
+    def ahkscr(self) -> str:
+        return "".join([
+            "~" if self.KEEP_ORIGIN == "TRUE" else "",
+            "$" if self.PREVENT_FIRE_ITSELF == "TRUE" else "",
+            "*" if self.WILDCARD == "TRUE" else "",
+            "{KEY}",
+            " UP" if self.EXECUTE_AFTER_RELEASE == "TRUE" else "",
+        ])
 
 
 class OptionFileBlock(FilepathBlockBase):
@@ -607,22 +713,142 @@ class SetClipboardBlock(ActionBlockBase):
         return ";"*(text_ahksrc == "") + f'Clipboard := {text_ahksrc}'
 
 
-class HotStringBlock(InputsInlineBlockBase, BlockBase):
+class HotStringBlock(BlockBase):
     """ 熱字串積木 """
-    template = '輸入{ABBR}Enter展開為{TEXT}'
-    colour = BlockBase.Colour.hot_string
+    template = '輸入{ABBR}+ Enter ={TEXT}'
+    colour = BlockBase.Colour.hotstring
     arg_dicts = {
         'ABBR': {
             'type': 'input_value',
             'check': 'String',
+            'align': "RIGHT",
         },
         'TEXT': {
             'type': 'input_value',
             'check': 'String',
+            'align': "RIGHT",
         },
     }
 
     def ahkscr(self) -> str:
         abbr_ahksrc = self.ABBR.ahkscr(with_quotes=False)
         text_ahksrc = self.TEXT.ahkscr(with_quotes=False)
-        return ";"*(not all([abbr_ahksrc, text_ahksrc])) + f'::{abbr_ahksrc}::{text_ahksrc}'
+        return ";"*(not all([abbr_ahksrc, text_ahksrc])) + f'::{abbr_ahksrc}::{{TEXT}}{text_ahksrc}'
+
+
+class HotStringWithSettingBlock(BlockBase):
+    """ 含設定熱字串積木 """
+    template = '輸入{ABBR}+ Enter ={TEXT}設定{SETTING}'
+    colour = BlockBase.Colour.hotstring
+    arg_dicts = {
+        'ABBR': {
+            'type': 'input_value',
+            'check': 'String',
+            'align': "RIGHT",
+        },
+        'TEXT': {
+            'type': 'input_value',
+            'check': 'String',
+            'align': "RIGHT",
+        },
+        'SETTING': {
+            'type': 'input_statement',
+            'check': 'hot_string_setting',
+        }
+    }
+
+    def ahkscr(self) -> str:
+        # 獲取縮寫與展開字詞
+        abbr_ahksrc = self.ABBR.ahkscr(with_quotes=False)
+        text_ahksrc = self.TEXT.ahkscr(with_quotes=False)
+        # 獲取設定字符串
+        setting_block = next(iter(self.SETTING), None)
+        setting_ahkscr = setting_block.ahkscr() if not setting_block.is_empty else "oc?"
+        return ";"*(not all([abbr_ahksrc, text_ahksrc])) + f':{setting_ahkscr}:{abbr_ahksrc}::{{TEXT}}{text_ahksrc}'
+
+
+class HotStringActionWithSettingBlock(BlockBase):
+    """ 含設定熱字串動作積木 """
+    template = '輸入{ABBR}+ Enter 執行{DO}設定{SETTING}'
+    colour = BlockBase.Colour.hotstring
+    arg_dicts = {
+        'ABBR': {
+            'type': 'input_value',
+            'check': 'String',
+            'align': "RIGHT",
+        },
+        'DO': {
+            'type': 'input_statement',
+            'align': "RIGHT",
+        },
+        'SETTING': {
+            'type': 'input_statement',
+            'check': 'hot_string_setting',
+        },
+    }
+
+    def ahkscr(self) -> str:
+        # 獲取縮寫
+        abbr_ahksrc = self.ABBR.ahkscr(with_quotes=False)
+
+        # 獲取設定字符串
+        setting_block = next(iter(self.SETTING), None)
+        setting_ahkscr = setting_block.ahkscr() if not setting_block.is_empty else "oc?"
+
+        # 獲取執行語法
+        do_block_ahksrc_line_str = [
+            do_block_ahksrc_line_str
+            for do_block in self.DO
+            for do_block_ahksrc_line_str in do_block.ahkscr().splitlines()
+        ]
+
+        # 進行換行(縮排)，並於結尾加上Return
+        do_ahkscr = f"\n{TAB4_INDENT}" + \
+            f"\n{TAB4_INDENT}".join(do_block_ahksrc_line_str + ["Return"])
+
+        return ";"*(not all([abbr_ahksrc, do_ahkscr])) + f':{setting_ahkscr}:{abbr_ahksrc}::{do_ahkscr}'
+
+
+class HotStringSettingBlock(InputsInlineBlockBase, SettingBlockBase):
+    """ 熱字串設定積木 """
+    template = [
+        '{CASE_SENSITIVE}區分大小寫',
+        '{IN_WORDS}字詞間展開',
+        '{IMMEDIATELY}立即展開',
+        '{CONTAIN_ENDING_CHARACTER}包含終止符',
+    ]
+    colour = BlockBase.Colour.hotstring
+    arg_dicts = {
+        'CASE_SENSITIVE': {
+            'type': 'field_checkbox',
+            'checked': True,
+        },
+        'IN_WORDS': {
+            'type': 'field_checkbox',
+            'checked': True,
+        },
+        'IMMEDIATELY': {
+            'type': 'field_checkbox',
+            'checked': False,
+        },
+        'CONTAIN_ENDING_CHARACTER': {
+            'type': 'field_checkbox',
+            'checked': False,
+        },
+    }
+
+    @classmethod
+    def _get_register_dict(cls):
+        """ 接受上文積木: 熱字串積木 """
+        return {
+            **super()._get_register_dict(),
+            "previousStatement": "hot_string_setting",
+        }
+
+    def ahkscr(self) -> str:
+        return "".join([
+            "*" if self.IMMEDIATELY == "TRUE" else "",
+            "" if self.CONTAIN_ENDING_CHARACTER == "TRUE" else "o",
+            "?" if self.IN_WORDS == "TRUE" else "",
+            "c" if self.CASE_SENSITIVE == "TRUE" else "",
+        ])

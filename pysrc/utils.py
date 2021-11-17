@@ -6,6 +6,7 @@ import re
 
 log = window.console.log
 Blockly = window.Blockly
+TAB4_INDENT: str = '    '
 
 
 def to_snake_case(camel_case_str: str) -> str:

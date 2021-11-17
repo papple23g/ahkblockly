@@ -29,12 +29,10 @@ class BlockBase(metaclass=abc.ABCMeta):
     template: Union[str, List[str]] = None
     # 參數字典集: 註冊 block 時的 arg0 列表裡的對應 arg 設定字典
     arg_dicts: dict = dict()
-    # 是否使用內嵌呈現? 否則為使用外嵌
-    inputs_inline_bool: bool = None
     # 顏色
     colour: Union[str, int] = None
-    # 其他註冊屬性
-    register_dict: dict = dict()
+    # 是否為空積木
+    is_empty = False
 
     def __init__(self, **kwargs):
         """
@@ -123,9 +121,7 @@ class BlockBase(metaclass=abc.ABCMeta):
                 }
                 for arg_name in cls.arg_dicts.keys()
             ],
-            "inputsInline": cls.inputs_inline_bool,
             "colour": cls.colour,
-            **cls.register_dict,
         }
 
         # 進行換行處理
@@ -136,7 +132,7 @@ class BlockBase(metaclass=abc.ABCMeta):
                 '%n', f"%{breakline_arg_i}", 1)
             com_dict['args0'].append({'type': 'input_dummy'})
 
-        print('com_dict', com_dict)
+        # print('com_dict', com_dict) #.## 常用 DEBUG
         return com_dict
 
     @classmethod
@@ -155,6 +151,7 @@ class BlockBase(metaclass=abc.ABCMeta):
             return None
 
         # 註冊 block
+        # print('cls._get_register_dict()', cls._get_register_dict())
         Blockly.Blocks[cls._get_type_attr()] = {
             "init": lambda: javascript.this().jsonInit(cls._get_register_dict()),
         }
@@ -221,27 +218,35 @@ class BlockBase(metaclass=abc.ABCMeta):
             Union[BlockBase, List[BlockBase]
         """
 
+        # 獲取對應參數名稱的節點
         input_node = next(
             (
                 sub_block_node for sub_block_node in block_node.children
                 if sub_block_node.attrs.get("name") == arg_name
             ), None
         )
+        # 若無對應名稱的節點，或該節點蟹無積木，則回傳空積木
         if input_node is None:
             return eval('EmptyBlock()') if not find_all_next_block else [eval('EmptyBlock()')]
         input_block_node = input_node.select_one('block')
         if input_block_node is None:
             return eval('EmptyBlock()') if not find_all_next_block else [eval('EmptyBlock()')]
+
+        # 將節點積木實例化 (若不可實例化則實例化空積木)
         input_block_type: str = input_block_node.attrs['type']
         input_block_class_name = f"{to_camel_case(input_block_type)}Block"
         input_block_class: BlockBase = eval(input_block_class_name)
-        input_block = input_block_class.create_blocks_from_xml_str(
-            input_node.innerHTML
-        )[0]
+        input_block = next(iter(
+            input_block_class.create_blocks_from_xml_str(
+                input_node.innerHTML
+            )), eval('EmptyBlock()')
+        )
 
+        # 若設定不再尋找下一個積木，則回傳實例化積木
         if not find_all_next_block:
             return input_block
 
+        # 若設定尋找所有下一個積木，則遍歷所有下一個積木進行實例化
         input_block_list = [input_block]
         for statement_next_node in input_node.select('next'):
             statement_block_node = statement_next_node.select_one('block')  # nopep8
@@ -252,10 +257,14 @@ class BlockBase(metaclass=abc.ABCMeta):
             statement_block_class: BlockBase = eval(
                 statement_block_class_name
             )
-            statement_block = statement_block_class.create_blocks_from_xml_str(
-                statement_block_node.outerHTML
-            )[0]
+            statement_block = next(iter(
+                statement_block_class.create_blocks_from_xml_str(
+                    statement_block_node.outerHTML
+                )), eval('EmptyBlock()')
+            )
             input_block_list.append(statement_block)
+
+        # 回傳遍歷後的積木串列
         return input_block_list
 
     @staticmethod
@@ -270,16 +279,17 @@ class BlockBase(metaclass=abc.ABCMeta):
         """
         com_block_list = []
 
-        # 遍歷所有獨立的 block 群
+        # 遍歷所有獨立的 blocks
         xml_div = DIV(xml_str)
         _block_node_list = xml_div.select('xml>block') or [
             child_note for child_note in xml_div.children
             if child_note.tagName == 'BLOCK'
         ]
+
+        # 遍歷所有 next blocks
         block_node_list = []
         for block_node in _block_node_list:
             block_node_list.append(block_node)
-
             # 不斷取得下一個 block node (next>block)
             while True:
                 next_node = next(
@@ -293,7 +303,12 @@ class BlockBase(metaclass=abc.ABCMeta):
                 block_node = next_node.select_one('block')
                 block_node_list.append(block_node)
 
+        # 遍歷積木節點，將節點積木實例化
         for block_node in block_node_list:
+            # 若該積木為停用，則置入空積木
+            if block_node.attrs.get('disabled') == 'true':
+                com_block_list.append(eval('EmptyBlock()'))
+                continue
 
             # 分析 block 的 type，並準備建立積木實例的參數字典
             block_type: str = block_node.attrs['type']
@@ -338,7 +353,13 @@ class BlockBase(metaclass=abc.ABCMeta):
         Number = hotkey = 230
         filepath = dirpath = link = 290
         action = 260
-        hot_string = '#CD5C5C'
+        hotstring = '#CD5C5C'
+        black = "#555555"
+
+
+class SettingBlockBase(BlockBase):
+    """ 設定型積木: 不會被直接編譯 """
+    pass
 
 
 class ActionBlockBase(BlockBase):
@@ -347,8 +368,8 @@ class ActionBlockBase(BlockBase):
     def _get_register_dict(cls):
         return {
             **super()._get_register_dict(),
-            "previousStatement": None,
-            "nextStatement": None,
+            "previousStatement": "action",
+            "nextStatement": "action",
         }
 
 
