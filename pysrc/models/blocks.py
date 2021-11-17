@@ -809,7 +809,7 @@ class HotStringActionWithSettingBlock(BlockBase):
         return ";"*(not all([abbr_ahksrc, do_ahkscr])) + f':{setting_ahkscr}:{abbr_ahksrc}::{do_ahkscr}'
 
 
-class HotStringSettingBlock(InputsInlineBlockBase, SettingBlockBase):
+class HotStringSettingBlock(SettingBlockBase):
     """ 熱字串設定積木 """
     template = [
         '{CASE_SENSITIVE}區分大小寫',

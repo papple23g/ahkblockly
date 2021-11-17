@@ -15,7 +15,17 @@ from pysrc.models.block_bases import BlockBase
 
 class BlocklyBoard:
     """ Blockly 白板 """
+
+    # 白板工作區實例
     workspace = None
+
+    # AHK 置頂程式碼: 腳本設定
+    header_ahkscr = "\n".join([
+        "#SingleInstance, Force",
+        "#NoEnv",
+        "SendMode Input",
+        "SetWorkingDir, %A_ScriptDir%\n\n",
+    ])
 
     class Toolbox:
         """ Blockly 工具箱 """
@@ -149,7 +159,7 @@ class BlocklyBoard:
             if block.ahkscr()
         ]
         # 輸出結果: 將不同積木的 AHK 代碼之間隔一行空白
-        return "\n\n".join(block_ahkscr_list)
+        return self.header_ahkscr + "\n\n".join(block_ahkscr_list)
 
     def load_xml_str(self, xml_str: str):
         """ 載入 XML 字串 """
