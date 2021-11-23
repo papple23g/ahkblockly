@@ -92,7 +92,7 @@ class BlocklyBoard:
     def __init__(
             self,
             toolbox: Toolbox,
-            block: BlockBase = None,):  # .## 之後要改為多個積木
+            block: BlockBase = None,):  # TODO: 要改為初始化多個白板上的積木
         """ Blockly 白板
 
         Args:

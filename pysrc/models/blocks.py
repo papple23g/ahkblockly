@@ -6,6 +6,8 @@ from typing import Literal
 from pysrc.models.block_bases import *
 from pysrc.utils import TAB4_INDENT
 
+# TODO: 擴充英文版積木
+
 
 class EmptyBlock(BlockBase):
     """ 空積木 """
@@ -71,7 +73,7 @@ class NormalKeyBlock(NormalKeyBlockBase):
                     string.ascii_lowercase,
                 )
             ] + [
-                # 其他按鍵 #.## 滑鼠中文名稱要可以被替換
+                # 其他按鍵
                 ["滑鼠左鍵", "LButton"],
                 ["滑鼠右鍵", "RButton"],
                 ["滑鼠中鍵", "MButton"],
@@ -163,7 +165,10 @@ class NormalKeyBlock(NormalKeyBlockBase):
         },
     }
 
-    def ahkscr(self, to_be_send: bool = False) -> str:
+    def ahkscr(
+            self,
+            to_be_send: bool = False,
+            send_arg_str: str = None) -> str:
         """ 普通按鍵積木的 ahk script 型態
 
         Args:
@@ -174,7 +179,7 @@ class NormalKeyBlock(NormalKeyBlockBase):
         """
         if not to_be_send:
             return f"{self.KEY}"
-        return f"{{{self.KEY}}}"
+        return f"{{{self.KEY}"+(f" {send_arg_str}" if not send_arg_str is None else "") + f"}}"
 
 
 class HotKeyBlock(HotKeyBlockBase):
@@ -183,26 +188,22 @@ class HotKeyBlock(HotKeyBlockBase):
     """
     template = '{KEY_A}+{KEY_B}'
     colour = BlockBase.Colour.hotkey
+
+    # AHK 輔助按鍵的名稱與對應符號字典
+    KEY_AND_CHR_MAPPING_DICT = {
+        'Ctrl': '^',
+        'Shift': '+',
+        'Alt': '!',
+        'Win': '#',
+        'L': '<',
+        'R': '>',
+    }
+
     arg_dicts = {
         'KEY_A': {
             'type': 'field_dropdown',
             "options": [
-                [
-                    left_or_right+key_name,
-                    (left_or_right+key_name).replace(
-                        'Ctrl', '^'
-                    ).replace(
-                        'Shift', '+'
-                    ).replace(
-                        'Alt', '!'
-                    ).replace(
-                        'Win', '#'
-                    ).replace(
-                        'L', '<'
-                    ).replace(
-                        'R', '>'
-                    )
-                ]
+                [left_or_right + key_name]*2
                 for left_or_right, key_name in itertools.product(
                     ['', 'L', 'R'],
                     ['Ctrl', 'Shift', 'Alt', 'Win'],
@@ -211,12 +212,43 @@ class HotKeyBlock(HotKeyBlockBase):
         },
         'KEY_B': {
             'type': 'input_value',
-            'check': ["hot_key", "normal_key"]
+            'check': ["hot_key", "normal_key"],
         },
     }
 
-    def ahkscr(self, to_be_send: bool = False) -> str:
-        return f"{html.unescape(self.KEY_A)}{self.KEY_B.ahkscr(to_be_send=to_be_send)}"
+    def ahkscr(
+            self,
+            to_be_send: bool = False,
+            send_arg_str: str = None,) -> str:
+        # 獲取 A B 按鍵名稱
+        # AHK 中沒有 {Win} 按鍵，要改為 {LWin}
+        key_a_ahkscr = self.KEY_A if self.KEY_A != "Win" else "LWin"
+        key_b_ahkscr = self.KEY_B.ahkscr(
+            to_be_send=to_be_send,
+            send_arg_str=send_arg_str,
+        )
+
+        # 獲取 A 按鍵符號
+        key_a_chr_ahkscr = self.KEY_A
+        for key_name, chr_key in self.KEY_AND_CHR_MAPPING_DICT.items():
+            key_a_chr_ahkscr = key_a_chr_ahkscr.replace(key_name, chr_key)
+        # 解決 html 解碼問題
+        key_a_chr_ahkscr = html.unescape(key_a_chr_ahkscr)
+
+        # 若以模擬按鍵的形式呼叫
+        if to_be_send:
+            # 若無 B 按鍵，則將 A 按鍵放上花括號
+            if not key_b_ahkscr:
+                return f"{{{key_a_ahkscr}"+(f" {send_arg_str}" if not send_arg_str is None else "") + f"}}"
+            # 若有 B 按鍵，則將 A 改為符號，B 按鍵放上花括號(`key_b_ahkscr`已包含花括號和按鍵次數)
+            return f"{key_a_chr_ahkscr}{key_b_ahkscr}"
+
+        # 若以熱鍵的形式呼叫
+        # 若無 B 按鍵，則直接使用 A 按鍵名稱
+        if not key_b_ahkscr:
+            return key_a_ahkscr
+        # 若有 B 按鍵，則使用 A 按鍵符號，B 按鍵名稱
+        return f"{key_a_chr_ahkscr}{key_b_ahkscr}"
 
 
 class ShortCutBlock(BlockBase):
@@ -226,7 +258,7 @@ class ShortCutBlock(BlockBase):
     arg_dicts = {
         'KEY': {
             'type': 'input_value',
-            'check': ["normal_key", "hot_key"],
+            'check': ["hot_key", "normal_key"],
         },
         'DO': {
             'type': 'input_statement',
@@ -271,7 +303,7 @@ class ShortCutWithSettingBlock(BlockBase):
     arg_dicts = {
         'KEY': {
             'type': 'input_value',
-            'check': ["normal_key", "hot_key"],
+            'check': ["hot_key", "normal_key"],
         },
         'DO': {
             'type': 'input_statement',
@@ -576,7 +608,7 @@ class OptionalSendKeyBlock(ActionBlockBase):
         return ";"*(key_ahksrc == "") + f"{self.SEND_MODE}, {key_ahksrc}"
 
 
-class SendInputKeyBlock(ActionBlockBase):
+class SendInputKeyBlock(ActionBlockBase, InputsInlineBlockBase):
     """ 送出按鍵積木 """
     template = '送出按鍵{KEY}'
     colour = BlockBase.Colour.action
@@ -589,6 +621,55 @@ class SendInputKeyBlock(ActionBlockBase):
 
     def ahkscr(self) -> str:
         key_ahksrc = self.KEY.ahkscr(to_be_send=True)
+        return ";"*(key_ahksrc == "") + f"SendInput, {key_ahksrc}"
+
+
+class SendInputNTimeKeyBlock(ActionBlockBase, InputsInlineBlockBase):
+    """ 送出按鍵積木 N 次 """
+    template = '送出按鍵{KEY}按{N}次'
+    colour = BlockBase.Colour.action
+    arg_dicts = {
+        'KEY': {
+            'type': 'input_value',
+            'check': ['hot_key', 'normal_key']
+        },
+        'N': {
+            'type': 'input_value',
+            'check': "Number",
+        },
+    }
+
+    def ahkscr(self) -> str:
+        send_arg_str = str(int(float(
+            self.N.ahkscr()
+        ))) if not self.N.is_empty else "0"
+        key_ahksrc = self.KEY.ahkscr(
+            to_be_send=True, send_arg_str=send_arg_str)
+        return ";"*(key_ahksrc == "") + f"SendInput, {key_ahksrc}"
+
+
+class SendInputKeyUpOrDownBlock(ActionBlockBase,InputsInlineBlockBase):
+    """ 送出按住或釋放按鍵 """
+    template = '送出{UP_OR_DOWN}{KEY}'
+    colour = BlockBase.Colour.action
+    arg_dicts = {
+        'UP_OR_DOWN': {
+            'type': 'field_dropdown',
+            "options": [
+                ['按住', 'Down'],
+                ['釋放', 'Up'],
+            ],
+        },
+        'KEY': {
+            'type': 'input_value',
+            'check': ['hot_key', 'normal_key']
+        },
+    }
+
+    def ahkscr(self) -> str:
+        send_arg_str = self.UP_OR_DOWN or None
+        key_ahksrc = self.KEY.ahkscr(
+            to_be_send=True, send_arg_str=send_arg_str)
         return ";"*(key_ahksrc == "") + f"SendInput, {key_ahksrc}"
 
 
@@ -852,3 +933,39 @@ class HotStringSettingBlock(SettingBlockBase):
             "?" if self.IN_WORDS == "TRUE" else "",
             "c" if self.CASE_SENSITIVE == "TRUE" else "",
         ])
+
+
+class ShutdownBlock(ActionBlockBase):
+    """ 關機/登出/重新啟動 積木 """
+    template = '電腦{ACTION} {FORCE}強制執行'
+    colour = BlockBase.Colour.action
+    arg_dicts = {
+        'ACTION': {
+            'type': 'field_dropdown',
+            'options': [
+                ['登出', 'Shutdown, 0'],
+                ['關機', 'Shutdown, 1'],
+                ['重新啟動', 'Shutdown, 2'],
+                ['睡眠',
+                    'DllCall("PowrProf\SetSuspendState", "int", 0, "int", 0, "int", 0)'],
+                ['休眠',
+                    'DllCall("PowrProf\SetSuspendState", "int", 1, "int", 0, "int", 0)'],
+                ['鎖定', 'Run rundll32.exe user32.dll`,LockWorkStation'],
+            ]
+        },
+        'FORCE': {
+            'type': 'field_checkbox',
+            'checked': False,
+        }
+    }
+
+    def ahkscr(self) -> str:
+        com_ahkscr = self.ACTION
+        if "Shutdown" in com_ahkscr and self.FORCE == "TRUE":
+            com_ahkscr = com_ahkscr.replace(
+                "0", "4"
+            ).replace(
+                "1", "5"
+            ).replace(
+                "2", "6")
+        return com_ahkscr
