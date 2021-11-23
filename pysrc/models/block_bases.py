@@ -248,28 +248,21 @@ class BlockBase(metaclass=abc.ABCMeta):
 
         # 若設定尋找所有下一個積木，則遍歷所有下一個積木進行實例化
         input_block_list = [input_block]
-        for statement_next_node in input_node.select('next'):
-            statement_block_node = statement_next_node.select_one('block')  # nopep8
-            if statement_block_node is None:
-                continue
-            statement_block_type: str = statement_block_node.attrs['type']
-            statement_block_class_name = f"{to_camel_case(statement_block_type)}Block"
-            statement_block_class: BlockBase = eval(
-                statement_block_class_name
+        statement_next_node = input_node.select_one('next')
+        if statement_next_node:
+            input_block_list.extend(
+                BlockBase.create_blocks_from_xml_str(
+                    statement_next_node.innerHTML
+                )
             )
-            statement_block = next(iter(
-                statement_block_class.create_blocks_from_xml_str(
-                    statement_block_node.outerHTML
-                )), eval('EmptyBlock()')
-            )
-            input_block_list.append(statement_block)
-
-        # 回傳遍歷後的積木串列
         return input_block_list
 
     @staticmethod
     def create_blocks_from_xml_str(xml_str: str) -> List['BlockBase']:
         """ 從 xml 字串建立積木實例
+
+        Args:
+            xml_str(str): xml 字串，開頭應為 <xml> 或 <block> 節點字串
 
         Raises:
             ValueError: 解析 xml 錯誤
