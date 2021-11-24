@@ -77,8 +77,12 @@ class NormalKeyBlock(NormalKeyBlockBase):
                 ["滑鼠左鍵", "LButton"],
                 ["滑鼠右鍵", "RButton"],
                 ["滑鼠中鍵", "MButton"],
+                ["滑鼠鍵 X1", "Xbutton1"],
+                ["滑鼠鍵 X2", "Xbutton2"],
                 ["滑鼠上滾", "WheelUp"],
                 ["滑鼠下滾", "WheelDown"],
+                ["滑鼠左滾", "WheelLeft"],
+                ["滑鼠右滾", "WheelRight"],
                 ["↑", "Up"],
                 ["↓", "Down"],
                 ["←", "Left"],
@@ -648,7 +652,7 @@ class SendInputNTimeKeyBlock(ActionBlockBase, InputsInlineBlockBase):
         return ";"*(key_ahksrc == "") + f"SendInput, {key_ahksrc}"
 
 
-class SendInputKeyUpOrDownBlock(ActionBlockBase,InputsInlineBlockBase):
+class SendInputKeyUpOrDownBlock(ActionBlockBase, InputsInlineBlockBase):
     """ 送出按住或釋放按鍵 """
     template = '送出{UP_OR_DOWN}{KEY}'
     colour = BlockBase.Colour.action
