@@ -3,7 +3,7 @@ import inspect
 
 from browser import (
     doc,
-    alert,
+    window,
     aio,
 )
 from browser.html import (
@@ -13,7 +13,6 @@ from browser.html import (
     INPUT,
 )
 
-from pysrc.utils import *
 from pysrc.models.block_bases import BlockBase
 from pysrc.models.blockly_board import BlocklyBoard
 from pysrc.models.blocks import *
@@ -37,6 +36,7 @@ def compile_btn(blocklyBoard: BlocklyBoard):
 def run_ahk_btn():
     """ 執行 AHK 按鈕 """
     async def run_ahkscr():
+        # BUG: 執行 Run 時，編譯文字尚未出現導致執行無反應
 
         # 獲取 AHK 程式碼 (若尚未產生就點一下編譯按鈕)
         if not doc['ahkscr_textarea'].value:
@@ -136,6 +136,11 @@ def main():
 
     # 置入執行按鈕
     doc <= run_ahk_btn()
+
+    # 置入停止按鈕
+    doc <= BUTTON("Stop").bind(
+        "click", lambda _: aio.run(aio.get('/api/stop_ahkscr'))
+    )
 
     # 置入腳本設定: 勾選是否要以管理員身分啟動
     doc <= INPUT(

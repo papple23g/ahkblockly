@@ -11,7 +11,11 @@ from browser.html import (
 )
 from browser.local_storage import storage
 
-from pysrc.utils import *
+from pysrc.utils import (
+    Blockly,
+    xml_to_str,
+    AHK_PROCESS_PID_FILENAME,
+)
 from pysrc.models.block_bases import BlockBase
 
 
@@ -23,7 +27,6 @@ class BlocklyBoard:
 
     # AHK 置頂程式碼: 腳本設定
 
-
     @classmethod
     def get_header_ahkscr(cls) -> str:
         """ 取得 AHK 置頂程式碼: 腳本設定 """
@@ -32,6 +35,9 @@ class BlocklyBoard:
             "#NoEnv",
             "SendMode Input",
             "SetWorkingDir, %A_ScriptDir%",
+            f'pid_filepath:=A_Temp . "/{AHK_PROCESS_PID_FILENAME}.txt"',
+            'FileDelete % pid_filepath',
+            'FileAppend, % DllCall("GetCurrentProcessId"), %pid_filepath%',
             "SwitchToAdmin()"*doc['run_as_admin_checkbox'].checked,
             "\n",
         ])

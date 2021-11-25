@@ -8,6 +8,7 @@ from typing import (
 import uuid
 import re
 import javascript
+import browser
 from browser import (
     doc,
 )
@@ -15,7 +16,12 @@ from browser.html import (
     DIV,
 )
 
-from pysrc.utils import *
+from pysrc.utils import (
+    Blockly,
+    to_snake_case,
+    to_camel_case,
+    xml_to_str,
+)
 
 
 class BuildInBlockBase:

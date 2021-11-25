@@ -6,7 +6,7 @@ from typing import Literal
 from pysrc.models.block_bases import *
 from pysrc.utils import TAB4_INDENT
 
-# TODO: 擴充英文版積木
+# TODO: ~擴充英文版積木
 
 
 class EmptyBlock(BlockBase):

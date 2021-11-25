@@ -4,6 +4,8 @@ from browser import (
 import browser
 import re
 
+from utils import AHK_PROCESS_PID_FILENAME
+
 log = window.console.log
 Blockly = window.Blockly
 TAB4_INDENT: str = '    '
