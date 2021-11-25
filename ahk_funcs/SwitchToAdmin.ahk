@@ -1,4 +1,4 @@
-switch_to_admin(){
+SwitchToAdmin(){
     ; REF. https://www.autohotkey.com/docs/commands/Run.htm#RunAs
     full_command_line := DllCall("GetCommandLine", "str")
     if not (A_IsAdmin or RegExMatch(full_command_line, " /restart(?!\S)"))

@@ -1,8 +1,10 @@
-from typing import List
+from typing import Iterable, List
 import uuid
+import json
 
 from browser import (
     doc,
+    aio,
 )
 from browser.html import (
     DIV,
@@ -20,12 +22,19 @@ class BlocklyBoard:
     workspace = None
 
     # AHK 置頂程式碼: 腳本設定
-    header_ahkscr = "\n".join([
-        "#SingleInstance, Force",
-        "#NoEnv",
-        "SendMode Input",
-        "SetWorkingDir, %A_ScriptDir%\n\n",
-    ])
+
+
+    @classmethod
+    def get_header_ahkscr(cls) -> str:
+        """ 取得 AHK 置頂程式碼: 腳本設定 """
+        return "\n".join([
+            "#SingleInstance, Force",
+            "#NoEnv",
+            "SendMode Input",
+            "SetWorkingDir, %A_ScriptDir%",
+            "SwitchToAdmin()"*doc['run_as_admin_checkbox'].checked,
+            "\n",
+        ])
 
     class Toolbox:
         """ Blockly 工具箱 """
@@ -143,11 +152,38 @@ class BlocklyBoard:
         xml = Blockly.Xml.workspaceToDom(self.workspace)
         return xml_to_str(xml)
 
-    def get_ahkscr(self) -> str:
+    async def get_ahk_func_name_list(self) -> List[str]:
+        """ 獲取 AHK 函式名稱列表
+
+        Returns:
+            List[str]: AHK 函式名稱列表
+        """
+        res = await aio.get('/api/ahk_funcs')
+        return json.loads(res.data)
+
+    async def get_ahk_funcs_script(self, ahk_func_name_list: Iterable[str]) -> str:
+        """ 獲取 AHK 函式腳本
+
+        Args:
+            ahk_func_name_list (Iterable[str])
+
+        Returns:
+            str
+        """
+        if not ahk_func_name_list:
+            return ''
+        ahk_func_names = ','.join(ahk_func_name_list)
+        res = await aio.get(f'/api/ahk_funcs_script', data=dict(ahk_func_names=ahk_func_names))
+        return json.loads(res.data)
+
+    async def get_ahkscr(self) -> str:
         """ 取得 AHK 代碼 """
         from pysrc.models.block_bases import ObjectBlockBase, SettingBlockBase
 
-        # 自白板獲取 xml 字串
+        # 獲取 AHK 置頂程式碼: 腳本設定
+        header_ahkscr = self.get_header_ahkscr()
+
+        # 獲取 AHK 積木程式碼腳本字串: 先自白板獲取 xml 字串
         xml_str = self.get_xml_str()
         # 將 xml 字串解析成多個積木元素，再逐一取得積木 AHK 字串
         block_ahkscr_list = [
@@ -158,8 +194,22 @@ class BlocklyBoard:
             # 排除積木沒有 ahk 代碼的積木(如:空積木)
             if block.ahkscr()
         ]
-        # 輸出結果: 將不同積木的 AHK 代碼之間隔一行空白
-        return self.header_ahkscr + "\n\n".join(block_ahkscr_list)
+        # 將不同積木的 AHK 代碼段落之間隔一行空白
+        block_ahkscr = "\n\n".join(block_ahkscr_list)
+
+        # 獲取關聯的 AHK 函數腳本字串
+        ahk_func_name_list = await self.get_ahk_func_name_list()
+        used_ahk_func_name_set = set(
+            func_name for func_name in ahk_func_name_list
+            if f"{func_name}(" in (header_ahkscr + block_ahkscr)
+        )
+        ahk_funcs_script = await self.get_ahk_funcs_script(used_ahk_func_name_set)
+        ahk_funcs_script = (
+            '\n\n;' + ' function '.center(30, "=") + '\n\n'
+            + ahk_funcs_script
+        ) if ahk_funcs_script else ""
+
+        return header_ahkscr + block_ahkscr + ahk_funcs_script
 
     def load_xml_str(self, xml_str: str):
         """ 載入 XML 字串 """

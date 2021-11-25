@@ -10,6 +10,7 @@ from browser.html import (
     DIV,
     BUTTON,
     TEXTAREA,
+    INPUT,
 )
 
 from pysrc.utils import *
@@ -21,14 +22,14 @@ from pysrc.models import blocks as Blocks
 
 def compile_btn(blocklyBoard: BlocklyBoard):
     """ 編譯按鈕 """
-    def blockly_board_to_xml_str_and_ahkscr(ev):
+    async def blockly_board_to_xml_str_and_ahkscr():
         doc['xml_textarea'].value = window.prettify_xml(
             blocklyBoard.get_xml_str())
-        doc['ahkscr_textarea'].value = blocklyBoard.get_ahkscr()
+        doc['ahkscr_textarea'].value = await blocklyBoard.get_ahkscr()
 
     compile_btn = BUTTON("Compile", id="compile_btn")
     compile_btn.bind(
-        "click", blockly_board_to_xml_str_and_ahkscr
+        "click", lambda _: aio.run(blockly_board_to_xml_str_and_ahkscr())
     )
     return compile_btn
 
@@ -135,6 +136,13 @@ def main():
 
     # 置入執行按鈕
     doc <= run_ahk_btn()
+
+    # 置入腳本設定: 勾選是否要以管理員身分啟動
+    doc <= INPUT(
+        type="checkbox",
+        id="run_as_admin_checkbox",
+        checked=True,
+    )
 
     # 置入編譯後的 xml 與 ahk 程式碼 DIV 區塊
     doc <= code_view_div()
