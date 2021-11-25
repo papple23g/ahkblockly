@@ -33,21 +33,18 @@ def compile_btn(blocklyBoard: BlocklyBoard):
     return compile_btn
 
 
-def run_ahk_btn():
+def run_ahk_btn(blocklyBoard: BlocklyBoard):
     """ 執行 AHK 按鈕 """
     async def run_ahkscr():
-        # BUG: 執行 Run 時，編譯文字尚未出現導致執行無反應
-
-        # 獲取 AHK 程式碼 (若尚未產生就點一下編譯按鈕)
-        if not doc['ahkscr_textarea'].value:
-            doc['compile_btn'].click()
-        ahkscr = doc['ahkscr_textarea'].value
+        doc['xml_textarea'].value = window.prettify_xml(
+            blocklyBoard.get_xml_str())
+        doc['ahkscr_textarea'].value = await blocklyBoard.get_ahkscr()
 
         # POST 請求: 送出 AHK 程式碼並執行
         await aio.post(
             '/api/run_ahkscr',
             data=json.dumps(dict(
-                ahkscr=ahkscr,
+                ahkscr=doc['ahkscr_textarea'].value,
             )),
         )
 
@@ -135,7 +132,7 @@ def main():
     doc <= compile_btn(blocklyBoard)
 
     # 置入執行按鈕
-    doc <= run_ahk_btn()
+    doc <= run_ahk_btn(blocklyBoard)
 
     # 置入停止按鈕
     doc <= BUTTON("Stop").bind(
