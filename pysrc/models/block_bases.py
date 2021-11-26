@@ -404,6 +404,8 @@ class ObjectBlockBase(BlockBase):
 
 class StringBlockBase(ObjectBlockBase):
     """ 字串型積木 """
+    colour = BlockBase.Colour.String
+
     @classmethod
     def _get_register_dict(cls):
         return {
@@ -414,6 +416,8 @@ class StringBlockBase(ObjectBlockBase):
 
 class NumberBlockBase(ObjectBlockBase):
     """ 數字型積木 """
+    colour = BlockBase.Colour.Number
+
     @classmethod
     def _get_register_dict(cls):
         return {

@@ -89,11 +89,16 @@ class Config(BaseModel):
             self._kill_process_as_admin(ahk_process_pid)
 
 
+class App(FastAPI):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.config = Config.get()
+
+
 # 建立 app 實例
-app = FastAPI(
+app = App(
     title="ahkblockly - fastapi",
 )
-app.config = Config.get()
 
 # 解決 CORS 問題
 app.add_middleware(
@@ -171,7 +176,7 @@ async def get_ahk_funcions_script(ahk_func_names: str):
     ]
     ahk_func_script = '\n\n'.join(ahk_func_script_list)
 
-    # 計算腳本列表提到的函式名稱數量，若有提到新的函式名稱，則添加到腳本列表中
+    # 分析函數列表的腳本內容，若有提到新的函式名稱，則添加到腳本列表中
     used_ahk_func_name_set = set(
         func_name for func_name in (await get_ahk_funcions())
         if f"{func_name}(" in ahk_func_script

@@ -553,7 +553,6 @@ class ClipboardBlock(StringBlockBase):
 class OptionTimeBlock(NumberBlockBase):
     """ 現年/月/日/星期/時/分/秒 時間積木 """
     template = '{TIME}'
-    colour = BlockBase.Colour.Number
     arg_dicts = {
         'TIME': {
             'type': 'field_dropdown',
@@ -769,18 +768,27 @@ class WinActivateBlock(ActionBlockBase):
 
 class SleepBlock(ActionBlockBase):
     """ 等待毫秒時間積木 """
-    template = '等待{TIME_MS}毫秒'
+    template = '等待{TIME}{UNIT}'
     colour = "#80ADC4"
     arg_dicts = {
-        'TIME_MS': {
+        'TIME': {
             'type': 'input_value',
             'check': 'Number',
+        },
+        'UNIT': {
+            'type': 'field_dropdown',
+            'options': [
+                ['毫秒', ''],
+                ['秒', ' * 1000'],
+                ['分鐘', ' * 1000 * 60'],
+                ['小時', ' * 1000 * 60 * 60'],
+            ],
         },
     }
 
     def ahkscr(self) -> str:
-        time_ms_ahkscr = self.TIME_MS.ahkscr()
-        return ";"*(time_ms_ahkscr == "") + f'Sleep % {time_ms_ahkscr}'
+        time_ms_ahkscr = self.TIME.ahkscr()
+        return ";"*(time_ms_ahkscr == "") + f'Sleep % {time_ms_ahkscr}{self.UNIT}'
 
 
 class SetClipboardBlock(ActionBlockBase):
@@ -973,3 +981,153 @@ class ShutdownBlock(ActionBlockBase):
             ).replace(
                 "2", "6")
         return com_ahkscr
+
+
+class MousePosBlock(NumberBlockBase):
+    """ 鼠標位置積木 """
+    template = '鼠標位置{POS}'
+    arg_dicts = {
+        'POS': {
+            'type': 'field_dropdown',
+            'options': [
+                ['X', '"x", "Screen"'],
+                ['Y', '"y", "Screen"'],
+                ['X (視窗座標)', '"x", "Window"'],
+                ['Y (視窗座標)', '"y", "Window"'],
+            ]
+        }
+    }
+
+    def ahkscr(self) -> str:
+        return f"GetMousePos({self.POS})"
+
+
+class MathConstantBlock(NumberBlockBase):
+    """ 數學常數積木 """
+    template = '{CONSTANT}'
+    arg_dicts = {
+        'CONSTANT': {
+            'type': 'field_dropdown',
+            'options': [
+                ['π', '4*atan(1)'],
+                ['e', 'exp(1)'],
+                ['ϕ', '(1+sqrt(5))/2'],
+            ]
+        }
+    }
+
+    def ahkscr(self) -> str:
+        return self.CONSTANT
+
+
+class MathOperatorBlock(NumberBlockBase, InputsInlineBlockBase):
+    """ 數學運算積木 """
+    template = '{NUM_A}{OPERATOR}{NUM_B}'
+    arg_dicts = {
+        'OPERATOR': {
+            'type': 'field_dropdown',
+            'options': [
+                ['+', '+'],
+                ['-', '-'],
+                ['×', '*'],
+                ['÷', '/'],
+                ['^', '**'],
+                ['//', '//'],
+                ['mod', 'Mod'],
+            ]
+        },
+        'NUM_A': {
+            'type': 'input_value',
+        },
+        'NUM_B': {
+            'type': 'input_value',
+        },
+    }
+
+    def ahkscr(self) -> str:
+        num_a_ahkscr = self.NUM_A.ahkscr() or "0"
+        num_b_ahkscr = self.NUM_B.ahkscr() or "0"
+        if self.OPERATOR == 'Mod':
+            return f"Mod({num_a_ahkscr}, {num_b_ahkscr})"
+        return f"{num_a_ahkscr}{self.OPERATOR}{num_b_ahkscr}"
+
+
+class MathFunctionBlock(NumberBlockBase):
+    """ 數學函數積木 """
+    template = '{FUNCTION}({NUM})'
+    arg_dicts = {
+        'FUNCTION': {
+            'type': 'field_dropdown',
+            'options': [
+                [func_name, func_name.title()]
+                for func_name in [
+                    'sin',
+                    'cos',
+                    'tan',
+                    'asin',
+                    'acos',
+                    'atan',
+                    'log',
+                    'ln',
+                    'exp',
+                    'sqrt',
+                    'ceil',
+                    'floor',
+                    'abs',
+                ]
+            ]
+        },
+        'NUM': {
+            'type': 'input_value',
+        },
+    }
+
+    def ahkscr(self) -> str:
+        num_ahkscr = self.NUM.ahkscr() or "0"
+        return f"{self.FUNCTION}({num_ahkscr})"
+
+
+class MathRoundBlock(NumberBlockBase):
+    """ 數學四捨五入積木 """
+    template = '四捨五入{NUM}至小數{N}位'
+    arg_dicts = {
+        'NUM': {
+            'type': 'input_value',
+        },
+        'N': {
+            'type': 'input_value',
+        },
+    }
+
+    def ahkscr(self) -> str:
+        num_ahkscr = self.NUM.ahkscr() or "0"
+        n_ahkscr = self.N.ahkscr() or "0"
+        return f"Round({num_ahkscr}, {n_ahkscr})"
+
+# GetRandomNum
+
+
+class MathRandomBlock(NumberBlockBase, InputsInlineBlockBase):
+    """ 數學隨機數積木 """
+    template = '隨機{METHOD}({MIN}~{MAX})'
+    arg_dicts = {
+        'METHOD': {
+            'type': 'field_dropdown',
+            'options': [
+                ['整數', '"Int"'],
+                ['浮點數', '"Float"'],
+            ]
+        },
+        'MIN': {
+            'type': 'input_value',
+        },
+        'MAX': {
+            'type': 'input_value',
+        },
+    }
+
+    def ahkscr(self) -> str:
+        method_ahkscr = self.METHOD
+        min_ahkscr = self.MIN.ahkscr() or "0"
+        max_ahkscr = self.MAX.ahkscr() or "0"
+        return f"GetRandomNum({min_ahkscr}, {max_ahkscr}, {method_ahkscr})"
