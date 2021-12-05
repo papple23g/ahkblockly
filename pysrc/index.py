@@ -105,12 +105,31 @@ def main():
             # 建立工具欄積木
             BlocklyBoard.Toolbox.Category(
                 # 建立一個[測試]的積木類別，包含所有積木 (但不包含空白積木)
-                name="測試",
+                name="ALL",
                 colour="#0000CD",
                 blocks=[
                     block_class() for block_class_name, block_class in inspect.getmembers(Blocks, inspect.isclass)
                     if block_class_name.endswith("Block")
                     and block_class_name != "EmptyBlock"
+                ],
+            ),
+            BlocklyBoard.Toolbox.Category(
+                # 建立一個[測試]的積木類別，包含所有積木 (但不包含空白積木)
+                name="熱鍵",
+                colour="#0000CD",
+                blocks=[
+                    ShortCutBlock(
+                        KEY=HotKeyBlock(
+                            KEY_A="Ctrl",
+                            KEY_B=NormalKeyBlock(KEY="F8"),
+                        ),
+                        DO=[
+                            MsgboxBlock(TEXT=TextBlock(TEXT="Hello World!")),
+                            MsgboxBlock(TEXT=TextBlock(TEXT="Hello World!2")),
+                            # TODO: 追加更多 DO 積木串列測試
+                            MsgboxBlock(TEXT=TextBlock(TEXT="Hello World!3")),
+                        ],
+                    )
                 ],
             ),
         ]),

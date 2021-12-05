@@ -183,29 +183,73 @@ class BlockBase(metaclass=abc.ABCMeta):
         exec(f"from pysrc.models.blocks import *", globals())
         return com_registered_subclass_list
 
-    def get_xml_str(self, formatting: bool = False) -> str:
+    def get_xml_str(
+            self,
+            formatting: bool = False,
+            next_block_list: List['BlockBase'] = None) -> str:
+        """ 產生 block 的 xml 格式字串
+
+        Args:
+            formatting (bool, optional): 是否要將輸出的 xml 字串格化. Defaults to False.
+            next_block_list (List['BlockBase']): 使用 next node 關聯的積木串列. Defaults to None.
+
+        Returns:
+            str
+        """
+
+        # 建立內容為空的 block node
         xml = doc.implementation.createDocument("", "", None)
         block_node = xml.createElement("block")
         block_node.setAttribute("type", self.__class__._get_type_attr())
         block_node.setAttribute("id", uuid.uuid4().hex)
 
+        # 遍歷所有參數，並將參數值設置為 block node 的子節點
         for arg_name, arg_dict in self.arg_dicts.items():
-            node_tag_name: str = "unknow"
+            node_tag_name: Literal['value', 'statement'] = "unknow"
             inner_html: str = ""
+
+            # 獲取 block node 的 inner html: 若該參數為 input 型參數 (有外接積木輸入參數)
             if arg_dict['type'].startswith('input_'):
+                # 獲取參數類型名稱 (`value` or `statement`)
                 _, node_tag_name = arg_dict['type'].split('_')
-                inner_html = (
-                    getattr(self, arg_name).get_xml_str()
-                    if hasattr(self, arg_name) else " "
-                )
+                # 嘗試獲取該參數的 attr: 若找不到，則設置 inner html 為空字串
+                if not hasattr(self, arg_name):
+                    inner_html = " "
+                else:
+                    arg_obj = getattr(self, arg_name)
+                    assert isinstance(
+                        arg_obj, BlockBase) or isinstance(arg_obj, list)
+                    # 若該參數的 attr 為 BlockBase 型別，則設置 inner html 為 xml 字串
+                    if isinstance(arg_obj, BlockBase):
+                        inner_html = arg_obj.get_xml_str()
+                    # 若該參數的 attr 為 List['BlockBase'] 型別，則使用迭代方法逐個處理積木列表
+                    elif isinstance(arg_obj, list):
+                        block_list: List['BlockBase'] = arg_obj
+                        if not block_list:
+                            inner_html = " "
+                        else:
+                            inner_html = block_list[0].get_xml_str(
+                                next_block_list=block_list[1:]
+                            )
+            # 若該參數為 field 型參數 (沒有外接積木輸入參數)，就直接設置 inner html 為參數值
             elif arg_dict['type'].startswith('field_'):
                 node_tag_name = "field"
                 inner_html = getattr(self, arg_name, " ")
 
+            # 建立 block node 的子節點，並將 inner html 設置為子節點的 inner html
             sub_block_node = xml.createElement(node_tag_name)
             sub_block_node.innerHTML = inner_html
             sub_block_node.setAttribute("name", arg_name)
             block_node.appendChild(sub_block_node)
+
+        # 若需要處理 next node，則使用迭代方法逐個處理積木列表
+        if next_block_list:
+            next_block_node = xml.createElement("next")
+            next_block_node.innerHTML = next_block_list[0].get_xml_str(
+                next_block_list=next_block_list[1:]
+            )
+            block_node.appendChild(next_block_node)
+
         return xml_to_str(block_node, formatting)
 
     @staticmethod
