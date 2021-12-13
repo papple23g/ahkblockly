@@ -21,9 +21,6 @@ from pydantic.types import FilePath
 
 from utils import AHK_PROCESS_PID_FILENAME
 
-# from models import *
-# from schema import *
-
 
 class Config(BaseModel):
     host: str = "127.0.0.1"
@@ -154,8 +151,6 @@ async def stop_ahkscr(background_tasks: BackgroundTasks):
     background_tasks.add_task(app.config.stop_ahk_script)
     return
 
-# 終止 AHK 腳本
-
 
 @app.get("/api/ahk_funcs", response_model=List[str])
 async def get_ahk_funcions():
@@ -212,9 +207,3 @@ def main():
 # 定義啟動方式
 if __name__ == '__main__':
     main()
-
-    # # app.config.run_ahk_file(R"C:\Users\Peter Wang\Desktop\00.ahk")
-    # ahk_script = '''
-    # Msgbox % "Hello World!!!123"
-    # '''
-    # app.config.run_ahk_script(ahk_script)

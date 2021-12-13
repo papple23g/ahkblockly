@@ -511,7 +511,7 @@ class DirpathBlockBase(ObjectBlockBase):
 
 
 class LinkBlockBase(ObjectBlockBase):
-    """ 檔案型積木 """
+    """ 網頁型積木 """
     @classmethod
     def _get_register_dict(cls):
         return {
